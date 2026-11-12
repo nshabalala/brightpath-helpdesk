@@ -240,7 +240,7 @@
       <p class="in" style="--i:2">Guides for getting started, coaching and your account. Ask the help desk anything about them, and every answer points back to the exact lines it came from.</p>
     </section>
     <div class="jump" id="jump"></div>
-    <div class="cards" id="cards" aria-busy="true"><div class="loading"></div><div class="loading"></div></div>
+    <div class="cards" id="cards" aria-busy="true"><p class="guides-note">Loading the guides... If they don't appear, the app was opened as a file: in a terminal in the project folder run <code>npm start</code>, then open http://127.0.0.1:8790.</p><div class="loading"></div><div class="loading"></div></div>
     <p class="guides-note">Can't find what you need? Email <a href="mailto:support@brightpath.example">support@brightpath.example</a>.</p>
   </main>
 
@@ -255,7 +255,7 @@
         <p>Questions will work again as soon as you reconnect. The guides on this page still work.</p>
       </div>
       <div class="notice setup" id="setup" role="status" hidden>
-        <div class="n-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Waiting for the host</div>
+        <div class="n-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="setup-title">Waiting for the host</span></div>
         <p id="setup-msg"></p>
         <div class="host" id="setup-host" hidden><strong>For the host (only shown on this machine)</strong><span id="setup-hint"></span><br><br>After fixing it, stop the server, run <code>npm start</code> again and reload this page.</div>
       </div>
@@ -332,7 +332,7 @@
   async function loadGuides() {
     const cards = $('cards'), jump = $('jump');
     let docs;
-    try { docs = await (await fetch('/api/documents')).json(); }
+    try { docs = await (await fetch('/api/documents', { signal: AbortSignal.timeout(8000) })).json(); }
     catch {
       const retry = el('button', 'retry-guides', 'Try again'); retry.type = 'button';
       retry.addEventListener('click', () => { cards.replaceChildren(el('div', 'loading')); loadGuides(); });
@@ -526,6 +526,18 @@
     if (e.animationName === 'rise' && e.target.classList.contains('in')) e.target.classList.remove('in');
   });
 
+  // Opened by double-clicking index.html instead of through the server: nothing
+  // can load, so say exactly how to open it properly instead of showing empty boxes.
+  if (location.protocol === 'file:') {
+    const how = 'In a terminal, open the project folder and run npm start, then open http://127.0.0.1:8790 in your browser.';
+    $('cards').replaceChildren(el('p', 'guides-note', 'This page has to be opened through the help desk server, not as a file. ' + how));
+    $('cards').removeAttribute('aria-busy');
+    lockForHost('This page was opened as a file, so it cannot reach the help desk. ' + how, null);
+    $('setup-title').textContent = 'Start the help desk server';
+    $('ai-state-text').textContent = 'Not connected: start the server with npm start';
+    input.placeholder = 'Start the server with npm start first';
+    return;
+  }
   loadGuides();
   checkStatus();
   if (!navigator.onLine) setOffline(true);

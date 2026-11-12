@@ -45,6 +45,7 @@ The app tells you what to do in the terminal when it starts and on the page:
 
 | What you see | What to do |
 | --- | --- |
+| Empty boxes or "the app was opened as a file" | You double-clicked `index.html`. Run `npm start` and open http://127.0.0.1:8790 instead. |
 | "waiting for the host to connect a working AI model" | Follow the "For the host" box on the page or the line in the terminal: usually add or fix `LLM_API_KEY` in `.env`, then restart. |
 | "port 8790 is already in use" | Start on another port, e.g. `PORT=8791 npm start` (Windows: `set PORT=8791 && npm start`), and open that port instead. |
 | "Node.js 22 or newer is needed" | Install the current LTS from nodejs.org. |
