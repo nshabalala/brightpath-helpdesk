@@ -8,7 +8,7 @@ import { ask as realAsk, NOT_FOUND_MESSAGE } from '../src/helpdesk.js';
 // Each test gets no cache unless it asks for one.
 const ask = (q, o = {}) => realAsk(q, { cache: null, ...o });
 
-const env = { LLM_BASE_URL: 'http://stub', LLM_MODEL: 'stub', LLM_TIMEOUT_MS: '200', LLM_RETRY_DELAY_MS: '0' };
+const env = { LLM_API_KEY: 'test-key', LLM_BASE_URL: 'http://stub', LLM_MODEL: 'stub', LLM_TIMEOUT_MS: '200', LLM_RETRY_DELAY_MS: '0' };
 const reply = (obj, status = 200) => async () =>
   new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(obj) } }] }), { status });
 
@@ -129,5 +129,13 @@ test('JSON null, a cut-off reply and a non-JSON body are handled', async () => {
 
 test('found:true with an empty answer is treated as not found', async () => {
   const r = await ask('x', { env, fetchImpl: reply({ found: true, answer: '  ', sources: ['doc1'], quotes: ['Your next lesson appears on Home.'] }) });
+  assert.equal(r.status, 'not_found');
+});
+
+test('a hosted provider with no key gives a clear message; a local model needs none', async () => {
+  const noKey = { LLM_BASE_URL: 'https://example.com/v1', LLM_MODEL: 'm' };
+  assert.match((await ask('x', { env: noKey })).answer, /No API key is set/);
+  const local = { LLM_BASE_URL: 'http://localhost:11434/v1', LLM_MODEL: 'm', LLM_RETRY_DELAY_MS: '0' };
+  const r = await ask('x', { env: local, fetchImpl: reply({ found: false, answer: '', sources: [], quotes: [] }) });
   assert.equal(r.status, 'not_found');
 });

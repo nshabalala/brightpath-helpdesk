@@ -23,7 +23,7 @@ npm run fail-demo # real API failure: points the model URL at a closed port (no 
 npm run cases     # the three required cases against the real model -> results/
 ```
 
-`npm test` (17 tests) covers: verified answer, model says not found, invented quote rejected, unknown document id rejected, empty answer, connection failure, timeout, rate limit, bad key, missing config, unreadable / cut-off / non-JSON reply, one retry then success, bad key not retried, typed password never sent, empty and over-long questions, cache reuse, errors not cached.
+`npm test` (18 tests) covers: verified answer, model says not found, invented quote rejected, unknown document id rejected, empty answer, connection failure, timeout, rate limit, bad key, missing config, unreadable / cut-off / non-JSON reply, one retry then success, bad key not retried, typed password never sent, empty and over-long questions, cache reuse, errors not cached, missing API key.
 
 The real-model results are in [`results/results.md`](results/results.md).
 

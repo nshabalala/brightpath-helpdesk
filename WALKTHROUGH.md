@@ -8,7 +8,7 @@
 - Questions the documents do not answer (pricing, refunds, job placement) get a clear "not in the documents, contact support" reply.
 - Model failures (no connection, timeout, bad key, unknown model, rate limit, provider error, unreadable reply) each give a plain message. Busy/5xx replies get one retry.
 - Safety and cost: a typed password is answered locally and never sent to the AI; questions and replies are size-capped; repeated questions reuse the earlier answer; the web API is limited to 10 questions a minute per visitor and only listens on this machine.
-- 17 offline tests (`npm test`) plus a real failure demo (`npm run fail-demo`).
+- 18 offline tests (`npm test`) plus a real failure demo (`npm run fail-demo`).
 
 ## Three test results (real model: gemini-3.5-flash-lite)
 

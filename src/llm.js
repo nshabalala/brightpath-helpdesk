@@ -19,6 +19,10 @@ export function readConfig(env = process.env) {
       'No language model is configured. Set LLM_BASE_URL and LLM_MODEL (and LLM_API_KEY if your provider needs one). See .env.example.'
     );
   }
+  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(baseUrl);
+  if (!env.LLM_API_KEY && !isLocal) {
+    throw new ModelUnavailableError('No API key is set. Add your key to LLM_API_KEY in .env (see .env.example), or point LLM_BASE_URL at a local model.');
+  }
   return {
     baseUrl: baseUrl.replace(/\/$/, ''),
     model,
@@ -72,6 +76,7 @@ async function chatOnce(messages, config, fetchImpl) {
     const hint =
       res.status === 401 || res.status === 403 ? 'the API key was rejected'
       : res.status === 429 ? 'the provider is rate limiting requests'
+      : res.status === 400 ? 'the provider rejected the request; check LLM_MODEL and LLM_API_KEY'
       : res.status === 404 ? `model "${config.model}" was not found; check LLM_MODEL`
       : res.status >= 500 ? 'the provider had an internal error'
       : `HTTP ${res.status}`;
