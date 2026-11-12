@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BrightPath Help Desk</title>
+<style>
+  :root { --bg:#f7f7f5; --card:#fff; --ink:#1d1d1b; --muted:#6b6b66; --line:#e4e4df; --accent:#1f6f5c; --warn:#9a5b00; --err:#b42318; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.5 system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width:640px; margin:48px auto; padding:0 16px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  p.sub { color:var(--muted); margin:0 0 24px; }
+  form { display:flex; gap:8px; }
+  input { flex:1; padding:12px 14px; border:1px solid var(--line); border-radius:10px; font:inherit; background:var(--card); }
+  button { padding:12px 18px; border:0; border-radius:10px; background:var(--accent); color:#fff; font:inherit; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:default; }
+  .card { margin-top:20px; padding:16px 18px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
+  .card.not_found { border-color:#f0d9b5; }
+  .card.error { border-color:#f3c3be; color:var(--err); }
+  .src { margin-top:12px; font-size:14px; color:var(--muted); }
+  blockquote { margin:6px 0 0; padding-left:10px; border-left:3px solid var(--line); font-size:14px; color:var(--muted); }
+  .tag { display:inline-block; font-size:12px; padding:2px 8px; border-radius:99px; background:#e8f2ef; color:var(--accent); margin-bottom:8px; }
+  .not_found .tag { background:#fbf1e1; color:var(--warn); }
+  .error .tag { background:#fdecea; color:var(--err); }
+</style>
+</head>
+<body>
+<main>
+  <h1>BrightPath Help Desk</h1>
+  <p class="sub">Answers come only from the three BrightPath help documents, with the source shown.</p>
+  <form id="f">
+    <input id="q" placeholder="e.g. When is group coaching?" autocomplete="off" required>
+    <button id="b">Ask</button>
+  </form>
+  <div id="out"></div>
+</main>
+<script>
+  const f = document.getElementById('f'), q = document.getElementById('q'), b = document.getElementById('b'), out = document.getElementById('out');
+  const labels = { answered: 'Answered from the documents', not_found: 'Not in the documents', error: 'Model unavailable' };
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    b.disabled = true; b.textContent = 'Thinking…';
+    let r;
+    try {
+      const res = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q.value }) });
+      r = await res.json();
+    } catch {
+      r = { status: 'error', answer: 'Could not reach the help desk server.', sources: [], quotes: [] };
+    }
+    const card = el('div', 'card ' + r.status);
+    card.append(el('span', 'tag', labels[r.status]), el('div', '', r.answer));
+    if (r.sources.length) {
+      const s = el('div', 'src', 'Source: ' + r.sources.map(x => x.title).join('; '));
+      r.quotes.forEach(t => s.append(el('blockquote', '', t)));
+      card.append(s);
+    }
+    out.prepend(card);
+    b.disabled = false; b.textContent = 'Ask';
+  });
+</script>
+</body>
+</html>

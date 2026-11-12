@@ -1,0 +1,16 @@
+{
+  "name": "brightpath-helpdesk",
+  "version": "1.0.0",
+  "description": "Small AI help desk that answers only from three supplied documents, with sources.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "ask": "node --env-file-if-exists=.env cli.js",
+    "start": "node --env-file-if-exists=.env server.js",
+    "test": "node --test",
+    "cases": "node --env-file-if-exists=.env scripts/run-cases.js",
+    "fail-demo": "LLM_BASE_URL=http://127.0.0.1:9/v1 node --env-file-if-exists=.env cli.js \"How do I reset my password?\""
+  }
+}
