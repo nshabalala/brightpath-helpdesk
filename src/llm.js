@@ -57,6 +57,7 @@ async function chatOnce(messages, config, fetchImpl) {
         messages,
         temperature: 0,
         response_format: { type: 'json_object' },
+        max_tokens: 800, // answers are a few sentences; caps cost and runaway replies
       }),
       signal: controller.signal,
     });
@@ -78,8 +79,17 @@ async function chatOnce(messages, config, fetchImpl) {
     throw new ModelUnavailableError(`The AI model is unavailable right now (${hint}). Please try again shortly.`, undefined, { retryable });
   }
 
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new ModelUnavailableError('The AI model sent back a reply I could not read. Please try again.');
+  }
+  const choice = data?.choices?.[0];
+  if (choice?.finish_reason === 'length') {
+    throw new ModelUnavailableError('The AI model ran out of room before finishing its answer. Please try a shorter question.');
+  }
+  const content = choice?.message?.content;
   if (typeof content !== 'string') {
     throw new ModelUnavailableError('The AI model sent back an empty reply. Please try again.');
   }

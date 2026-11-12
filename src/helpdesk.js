@@ -40,20 +40,52 @@ export function checkGrounding(parsed, docs) {
   if (!sources.length || !quotes.length) return { ok: false, reason: 'no valid source or quote cited' };
   const cited = sources.map((id) => normalise(byId.get(id).text));
   const missing = quotes.filter((q) => !cited.some((t) => t.includes(normalise(q))));
-  if (missing.length) return { ok: false, reason: `quote not found in cited documents: "${missing[0]}"` };
-  return { ok: true, sources };
+  if (missing.length) return { ok: false, reason: `${missing.length} quote(s) not found in the cited documents` };
+  return { ok: true, sources, quotes };
 }
 
-/**
- * @returns {Promise<{status: 'answered'|'not_found'|'error', answer: string, sources: {id,title}[], quotes: string[], note?: string}>}
- */
-export async function ask(question, { env = process.env, fetchImpl = fetch, docs = loadDocuments() } = {}) {
-  const q = (question || '').trim();
-  if (!q) return { status: 'error', answer: 'Please type a question.', sources: [], quotes: [] };
+export const MAX_QUESTION_LENGTH = 500;
 
+const PASSWORD_MESSAGE =
+  "Please don't share your password here: BrightPath will never ask for it, and your message was not passed to the AI. To reset your password, select Forgot password on the sign-in page.";
+
+// Catches "my password is hunter2", "password: x", "pwd=x". Such questions are
+// answered locally and never sent to the AI provider.
+const SECRET_PATTERN = /\b(password|passcode|passwd|pwd|pin)\b\s*(is|was|=|:)\s*\S+/i;
+
+// Identical questions reuse the earlier answer instead of paying for another
+// model call. In memory, bounded, per process. Errors are never cached.
+const MAX_CACHE = 200;
+const defaultCache = new Map();
+const cacheKey = (config, q) => `${config.baseUrl}|${config.model}|${q.toLowerCase().replace(/\s+/g, ' ').replace(/[?.!\s]+$/, '')}`;
+function remember(cache, key, value) {
+  if (!cache) return value;
+  cache.delete(key);
+  cache.set(key, value);
+  if (cache.size > MAX_CACHE) cache.delete(cache.keys().next().value);
+  return value;
+}
+
+const result = (status, answer, extra = {}) => ({ status, answer, sources: [], quotes: [], ...extra });
+
+/**
+ * @returns {Promise<{status: 'answered'|'not_found'|'invalid'|'error', answer: string, sources: {id,title}[], quotes: string[], note?: string, cached?: boolean}>}
+ *   invalid = problem with the question itself (never sent to the model)
+ *   error   = the model could not be used
+ *   note    = internal diagnostic, for the CLI and logs only
+ */
+export async function ask(question, { env = process.env, fetchImpl = fetch, docs = loadDocuments(), cache = defaultCache } = {}) {
+  const q = String(question ?? '').trim();
+  if (!q) return result('invalid', 'Please type a question.');
+  if (q.length > MAX_QUESTION_LENGTH) return result('invalid', `Please keep your question under ${MAX_QUESTION_LENGTH} characters.`);
+  if (SECRET_PATTERN.test(q)) return result('invalid', PASSWORD_MESSAGE);
+
+  let config;
   let raw;
   try {
-    const config = readConfig(env);
+    config = readConfig(env);
+    const hit = cache?.get(cacheKey(config, q));
+    if (hit) return { ...hit, cached: true };
     raw = await chat(
       [
         { role: 'system', content: systemPrompt(docs) },
@@ -63,33 +95,31 @@ export async function ask(question, { env = process.env, fetchImpl = fetch, docs
       fetchImpl
     );
   } catch (err) {
-    if (err instanceof ModelUnavailableError) {
-      return { status: 'error', answer: err.message, sources: [], quotes: [] };
-    }
+    if (err instanceof ModelUnavailableError) return result('error', err.message);
     throw err;
   }
 
   let parsed;
   try {
-    parsed = JSON.parse(raw.replace(/^```(?:json)?\s*|\s*```$/g, ''));
+    parsed = JSON.parse(raw.trim().replace(/^```(?:json)?\s*|\s*```$/g, ''));
   } catch {
-    return { status: 'error', answer: 'The AI model sent back a reply I could not read. Please try again.', sources: [], quotes: [] };
+    parsed = null;
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    return result('error', 'The AI model sent back a reply I could not read. Please try again.');
   }
 
-  if (!parsed.found) {
-    return { status: 'not_found', answer: NOT_FOUND_MESSAGE, sources: [], quotes: [] };
-  }
+  const key = cacheKey(config, q);
+  const notFound = (note) => remember(cache, key, result('not_found', NOT_FOUND_MESSAGE, note ? { note } : {}));
+  const answer = typeof parsed.answer === 'string' ? parsed.answer.trim() : '';
+  if (parsed.found !== true || !answer) return notFound();
 
   const grounding = checkGrounding(parsed, docs);
-  if (!grounding.ok) {
-    return { status: 'not_found', answer: NOT_FOUND_MESSAGE, sources: [], quotes: [], note: `Answer rejected by grounding check: ${grounding.reason}` };
-  }
+  if (!grounding.ok) return notFound(`Answer rejected by grounding check: ${grounding.reason}`);
 
   const titles = new Map(docs.map((d) => [d.id, d.title]));
-  return {
-    status: 'answered',
-    answer: String(parsed.answer || '').trim(),
+  return remember(cache, key, result('answered', answer, {
     sources: grounding.sources.map((id) => ({ id, title: titles.get(id) })),
-    quotes: parsed.quotes,
-  };
+    quotes: grounding.quotes,
+  }));
 }

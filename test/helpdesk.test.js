@@ -3,7 +3,10 @@
 // answer quality. Real-model results are in results/results.md.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ask, NOT_FOUND_MESSAGE } from '../src/helpdesk.js';
+import { ask as realAsk, NOT_FOUND_MESSAGE } from '../src/helpdesk.js';
+
+// Each test gets no cache unless it asks for one.
+const ask = (q, o = {}) => realAsk(q, { cache: null, ...o });
 
 const env = { LLM_BASE_URL: 'http://stub', LLM_MODEL: 'stub', LLM_TIMEOUT_MS: '200', LLM_RETRY_DELAY_MS: '0' };
 const reply = (obj, status = 200) => async () =>
@@ -80,4 +83,51 @@ test('unreadable model reply is reported', async () => {
   const fetchImpl = async () => new Response(JSON.stringify({ choices: [{ message: { content: 'not json' } }] }));
   const r = await ask('x', { env, fetchImpl });
   assert.equal(r.status, 'error');
+});
+
+test('a typed password is never sent to the model', async () => {
+  let calls = 0;
+  const r = await ask('my password is Hunter2, can you log in for me?', { env, fetchImpl: async () => { calls++; return reply({})(); } });
+  assert.equal(calls, 0);
+  assert.equal(r.status, 'invalid');
+  assert.match(r.answer, /never ask for it/);
+});
+
+test('empty and over-long questions are rejected without a model call', async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return reply({})(); };
+  assert.equal((await ask('   ', { env, fetchImpl })).status, 'invalid');
+  assert.equal((await ask('a'.repeat(501), { env, fetchImpl })).status, 'invalid');
+  assert.equal(calls, 0);
+});
+
+test('an identical question reuses the cached answer', async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return reply({ found: false, answer: '', sources: [], quotes: [] })(); };
+  const cache = new Map();
+  await realAsk('What is the refund policy?', { env, fetchImpl, cache });
+  const second = await realAsk('  what is the refund policy ', { env, fetchImpl, cache });
+  assert.equal(calls, 1);
+  assert.equal(second.cached, true);
+});
+
+test('errors are not cached', async () => {
+  let calls = 0;
+  const cache = new Map();
+  const fetchImpl = async () => { calls++; throw new TypeError('fetch failed'); };
+  await realAsk('q', { env, fetchImpl, cache });
+  await realAsk('q', { env, fetchImpl, cache });
+  assert.equal(calls, 2);
+});
+
+test('JSON null, a cut-off reply and a non-JSON body are handled', async () => {
+  const body = (content, extra = {}) => async () => new Response(JSON.stringify({ choices: [{ message: { content }, ...extra }] }));
+  assert.equal((await ask('x', { env, fetchImpl: body('null') })).status, 'error');
+  assert.match((await ask('x', { env, fetchImpl: body('{"found":', { finish_reason: 'length' }) })).answer, /ran out of room/);
+  assert.equal((await ask('x', { env, fetchImpl: async () => new Response('<html>oops</html>') })).status, 'error');
+});
+
+test('found:true with an empty answer is treated as not found', async () => {
+  const r = await ask('x', { env, fetchImpl: reply({ found: true, answer: '  ', sources: ['doc1'], quotes: ['Your next lesson appears on Home.'] }) });
+  assert.equal(r.status, 'not_found');
 });

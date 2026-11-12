@@ -2,12 +2,13 @@
 
 ## What works
 
-- Ask a question from the command line (`npm run ask -- "..."`) or a small web page (`npm start`).
+- Ask a question from the command line (`npm run ask -- "..."`) or a web page (`npm start`) with example questions, labelled answers, clickable sources that open the document with the supporting lines highlighted, a Try again button on failures, and phone and dark-mode layouts.
 - Answers come only from the three supplied documents. Each answer shows the supporting document and the exact sentences it relied on.
 - **Grounding check:** the model must return verbatim quotes, and the code checks every quote really appears in a cited document. If it does not, the answer is discarded and the member is told the information is not available. So an invented answer cannot reach the member even if the model ignores its instructions. (Unit-tested with a fabricated "refunds within 30 days" answer.)
 - Questions the documents do not answer (pricing, refunds, job placement) get a clear "not in the documents, contact support" reply.
 - Model failures (no connection, timeout, bad key, unknown model, rate limit, provider error, unreadable reply) each give a plain message. Busy/5xx replies get one retry.
-- 11 offline tests (`npm test`) plus a real failure demo (`npm run fail-demo`).
+- Safety and cost: a typed password is answered locally and never sent to the AI; questions and replies are size-capped; repeated questions reuse the earlier answer; the web API is limited to 10 questions a minute per visitor and only listens on this machine.
+- 17 offline tests (`npm test`) plus a real failure demo (`npm run fail-demo`).
 
 ## Three test results (real model: gemini-3.5-flash-lite)
 
@@ -22,7 +23,7 @@ Full output in `results/results.md`.
 
 ## What I built myself
 
-I designed the approach and directed the build: whole-document context instead of retrieval (the docs are tiny), strict JSON output, the quote-grounding check, the error mapping and the single retry. I used Claude Code to write most of the code and tests, then ran and checked every result against the real model myself, and I can walk through any line.
+I designed the approach and directed the build: whole-document context instead of retrieval (the docs are tiny), strict JSON output, the quote-grounding check, the error mapping, the single retry, the password guard and cost limits, and the web page's states. I used Claude Code (an AI coding agent) to write most of the code and tests and to run them against the real model; every result above comes from those runs and is saved in `results/`. I reviewed the code and can walk through it.
 
 ## Problems found while testing
 
