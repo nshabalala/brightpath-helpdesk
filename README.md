@@ -1,46 +1,63 @@
 # BrightPath Help Desk
 
-Answers member questions only from the three supplied BrightPath documents, shows the supporting document, says so when the answer isn't there, and gives a clear message when the model is unavailable. Node 22+, no dependencies.
+A small AI help desk that answers questions only from the three supplied BrightPath documents, shows which document supports each answer, says so when the answer isn't there, and gives a clear message when the AI model is unavailable.
 
 ![Help centre with guides on the left and the help desk chat on the right](screenshot.png)
 
-## Run it
+## What you need to install
+
+- **Node.js 22 or newer.** Download it from [nodejs.org](https://nodejs.org) (the LTS version is fine). Check with `node -v`.
+- **Nothing else.** There are no npm packages, so there is no `npm install` step.
+- **A free AI key** to get real answers: create one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (Google account, no card). Without a key the app still opens, shows the guides, and says it is waiting for the host to connect a working AI model.
+
+## Open the app
+
+1. **Get the code.** Either `git clone https://github.com/nshabalala/brightpath-helpdesk.git`, or on GitHub press **Code, Download ZIP** and unzip it.
+2. **Open a terminal in the folder:**
+   ```bash
+   cd brightpath-helpdesk
+   ```
+3. **Create your settings file** from the example:
+   - Mac or Linux: `cp .env.example .env`
+   - Windows (Command Prompt): `copy .env.example .env`
+4. **Add your key.** Open `.env` in any text editor and paste your key after `LLM_API_KEY=` (no spaces or quotes). Save it. Leave the other lines as they are.
+5. **Start it:**
+   ```bash
+   npm start
+   ```
+6. **Open [http://127.0.0.1:8790](http://127.0.0.1:8790)** in your browser. Ask a question in the chat on the right, or tap one of the suggested questions.
+
+To stop it, press `Ctrl+C` in the terminal. If you change `.env`, stop and start it again.
+
+**Command line instead of the web page:** `npm run ask -- "When is group coaching?"`
+
+## Test it (no key needed)
 
 ```bash
-cp .env.example .env                       # add a free key (Google AI Studio), or point at a local model
-npm run ask -- "When is group coaching?"   # command line
-npm start                                  # web page on http://127.0.0.1:8790
+npm test           # 21 automatic tests
+npm run fail-demo  # a real AI failure (model address pointed at a closed port)
+npm run cases      # with a key: the three required cases, saved to results/
 ```
 
-Any OpenAI-compatible endpoint works (Gemini, Groq, Ollama). Keys live only in `.env`.
+## If something goes wrong
 
-## Test it
+The app tells you what to do in the terminal when it starts and on the page:
 
-```bash
-npm test           # 21 offline tests, no key needed
-npm run fail-demo  # a real API failure (model URL pointed at a closed port), no key needed
-npm run cases      # the three required cases on the real model, saved to results/
-```
+| What you see | What to do |
+| --- | --- |
+| "waiting for the host to connect a working AI model" | Follow the "For the host" box on the page or the line in the terminal: usually add or fix `LLM_API_KEY` in `.env`, then restart. |
+| "port 8790 is already in use" | Start on another port, e.g. `PORT=8791 npm start` (Windows: `set PORT=8791 && npm start`), and open that port instead. |
+| "Node.js 22 or newer is needed" | Install the current LTS from nodejs.org. |
+| "The AI model is slower than usual" or "try again" | The free AI tier is busy; wait a moment and try again. |
 
 ## How it works
 
-- All three documents go to the model with each question. The model must reply in JSON with its answer, the document ids it used, and exact quotes.
+- All three documents go to the model with each question. The model must reply in JSON with its answer, the document ids it used and exact quotes.
 - **Grounding check:** every quote must really appear in a cited document, or the answer is discarded and the member is told it isn't in the documents. A made-up answer can't reach the member.
-- **Failures** (no connection, timeout, bad key, rate limit, provider error, unreadable reply) each give a plain message; busy or server errors get one retry.
-- **Guards:** a typed password is never sent to the AI; questions and replies are size-capped; repeated questions reuse the earlier answer; the web API allows 10 questions a minute per visitor and listens on this machine only.
+- **Fail-safes:** setup problems (no key, wrong key, wrong model) show "waiting for the host" to members and the exact fix to the host only; temporary problems (slow, busy, down) show "try again" with one automatic retry; offline, a busy port, an old Node version and missing documents each get a clear message.
+- **Guards:** a typed password is never sent to the AI; questions and replies are size-capped; repeated questions reuse the earlier answer; the web page allows 10 questions a minute per visitor and is only reachable from this computer.
+- **Web page:** guides on the left built from the same documents; tapping an answer's source highlights the lines it came from; each answer shows its response time; works on phones, tablets and desktops, light and dark.
 
-**Web page:** a black, off-white and green help centre. The guides on the left are built from the same three documents, and tapping an answer's source highlights the lines it came from. Each answer shows its response time; a slow model shows "slower than usual" after 6 s and a Cancel button after 15 s. Works from small phones to wide screens, in light and dark mode, and all motion switches off when the system asks for reduced motion.
+Any OpenAI-compatible model works by changing `.env` (Gemini, Groq, or a local Ollama model, which needs no key). Tested with `gemini-3.5-flash-lite`.
 
-## Fail-safes
-
-| Problem | Student sees | Host sees (terminal, and the page on the host's machine) |
-| --- | --- | --- |
-| No model set up, no key, wrong key or wrong model | "The help desk is waiting for the host to connect a working AI model", with questions paused and the guides still usable | The exact fix, e.g. "LLM_API_KEY is empty. Add a key to .env..." |
-| Model slow, busy, down or unreachable | A plain "try again in a moment" message with a Try again button | What went wrong (timeout, HTTP 429, HTTP 5xx, address) |
-| Browser offline | "You're offline", sending paused until it reconnects | |
-| Guides fail to load | A Try again button | |
-| Port in use, Node too old, docs missing | | A one-line instruction at start-up instead of a crash |
-
-Setup problems are found at start-up or on the first failed call; after that the server stops calling the provider until the host fixes `.env` and restarts. Students never see setup details or error codes.
-
-Main code: `src/helpdesk.js` (prompt, grounding check) and `src/llm.js` (model call, errors). Tested with `gemini-3.5-flash-lite`. Walkthrough and improvements: [WALKTHROUGH.md](WALKTHROUGH.md).
+Main code: `src/helpdesk.js` (prompt, grounding check), `src/llm.js` (model call), `src/failures.js` (fail-safe messages), `server.js` (web server). Walkthrough and test results: [WALKTHROUGH.md](WALKTHROUGH.md), [results/results.md](results/results.md).
