@@ -29,6 +29,6 @@ npm run cases      # the three required cases on the real model, saved to result
 - **Failures** (no connection, timeout, bad key, rate limit, provider error, unreadable reply) each give a plain message; busy or server errors get one retry.
 - **Guards:** a typed password is never sent to the AI; questions and replies are size-capped; repeated questions reuse the earlier answer; the web API allows 10 questions a minute per visitor and listens on this machine only.
 
-**Web page:** the guides on the left are built from the same three documents; tapping an answer's source highlights the lines it came from. Each answer shows its response time, and a slow model shows "slower than usual" after 6 s and a Cancel button after 15 s.
+**Web page:** a black, off-white and green help centre. The guides on the left are built from the same three documents, and tapping an answer's source highlights the lines it came from. Each answer shows its response time; a slow model shows "slower than usual" after 6 s and a Cancel button after 15 s. Works from small phones to wide screens, in light and dark mode, and all motion switches off when the system asks for reduced motion.
 
 Main code: `src/helpdesk.js` (prompt, grounding check) and `src/llm.js` (model call, errors). Tested with `gemini-3.5-flash-lite`. Walkthrough and improvements: [WALKTHROUGH.md](WALKTHROUGH.md).
