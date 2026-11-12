@@ -4,255 +4,379 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>BrightPath Help</title>
+<title>BrightPath Learn Help Centre</title>
 <style>
   :root {
-    --bg: #f6f6f3; --surface: #ffffff; --surface-2: #f0f0ec; --ink: #1b1d1c; --muted: #5f6461; --line: #e2e3de;
-    --accent: #1f6f5c; --accent-ink: #ffffff; --accent-soft: #e5f1ed;
+    --bg: #f5f5f1; --surface: #ffffff; --surface-2: #f0f0eb; --ink: #1a1d1c; --muted: #5d6360; --line: #e1e2dc;
+    --brand: #1f6f5c; --brand-ink: #ffffff; --brand-soft: #e4f0ec; --brand-deep: #164f42;
     --warn: #8a5300; --warn-soft: #fbf1e0; --warn-line: #efd8b0;
     --err: #b42318; --err-soft: #fdecea; --err-line: #f4c7c1;
-    --mark: #fff1b8; --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
-    --radius: 14px;
+    --hit: #fff0b3; --hit-line: #e6c34d;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 20px rgba(0,0,0,.05);
+    --r: 14px; --top: 60px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #121413; --surface: #1b1e1d; --surface-2: #232726; --ink: #eceeed; --muted: #a2a8a5; --line: #2e3331;
-      --accent: #4fb89a; --accent-ink: #0d1f1a; --accent-soft: #1d332d;
-      --warn: #f0b85c; --warn-soft: #2e2617; --warn-line: #4a3b1f;
-      --err: #f08a80; --err-soft: #331d1b; --err-line: #55302c;
-      --mark: #5a4b12; --shadow: none;
+      --bg: #111312; --surface: #1a1d1c; --surface-2: #222624; --ink: #eceeed; --muted: #a0a6a3; --line: #2d3230;
+      --brand: #4fb89a; --brand-ink: #0c1f19; --brand-soft: #1c322b; --brand-deep: #8fd6c1;
+      --warn: #f0b85c; --warn-soft: #2d2517; --warn-line: #4a3b1f;
+      --err: #f08a80; --err-soft: #321d1b; --err-line: #55302c;
+      --hit: #4a3f12; --hit-line: #a8891f; --shadow: none;
     }
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
-  .app { max-width: 720px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; padding: 0 16px; }
+  body { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; margin: 0; background: var(--bg); color: var(--ink); font: 15.5px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-  header { display: flex; align-items: center; gap: 12px; padding: 20px 0 16px; border-bottom: 1px solid var(--line); }
-  .logo { width: 36px; height: 36px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-weight: 700; flex: none; }
-  header h1 { font-size: 17px; margin: 0; line-height: 1.2; }
-  header p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+  /* Top bar */
+  .top { flex: none; height: var(--top); display: flex; align-items: center; gap: 12px; padding: 0 20px; background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  .mark { width: 34px; height: 34px; border-radius: 10px; background: var(--brand); color: var(--brand-ink); display: grid; place-items: center; flex: none; }
+  .mark svg { width: 20px; height: 20px; }
+  .brand { font-weight: 700; font-size: 16px; letter-spacing: -.01em; }
+  .pill { font-size: 12px; font-weight: 600; color: var(--brand-deep); background: var(--brand-soft); padding: 3px 10px; border-radius: 999px; }
+  .top .hours { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .top .hours svg { width: 15px; height: 15px; }
 
-  main { flex: 1; padding: 24px 0 8px; }
-  .intro h2 { font-size: 24px; letter-spacing: -.01em; margin: 8px 0 6px; }
-  .intro p { color: var(--muted); margin: 0 0 20px; }
-  .suggest { display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 14px; cursor: pointer; text-align: left; }
-  .chip:hover { border-color: var(--accent); }
+  /* Layout: guides left, chat right */
+  .shell { display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 440px); flex: 1; min-height: 0; }
+  .guides { overflow-y: auto; padding: 32px clamp(16px, 4vw, 48px) 48px; }
+  .guides > * { margin-left: auto; margin-right: auto; }
+  .chat { border-left: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
+  .tabs { display: none; }
 
-  .thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
-  .q { align-self: flex-end; max-width: 85%; background: var(--accent); color: var(--accent-ink); padding: 10px 14px; border-radius: var(--radius) var(--radius) 4px var(--radius); white-space: pre-wrap; overflow-wrap: anywhere; }
-  .a { align-self: stretch; background: var(--surface); border: 1px solid var(--line); border-radius: 4px var(--radius) var(--radius) var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+  /* Guides */
+  .hero { max-width: 720px; margin-bottom: 24px; }
+  .hero h1 { font-size: 30px; line-height: 1.2; letter-spacing: -.02em; margin: 0 0 8px; }
+  .hero p { margin: 0; color: var(--muted); font-size: 16px; }
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .jump a { text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 14px; }
+  .jump a:hover { border-color: var(--brand); }
+  .cards { display: grid; gap: 16px; max-width: 720px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 20px 22px; box-shadow: var(--shadow); scroll-margin-top: 16px; }
+  .card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .icon { width: 36px; height: 36px; border-radius: 10px; background: var(--brand-soft); color: var(--brand-deep); display: grid; place-items: center; flex: none; }
+  .icon svg { width: 19px; height: 19px; }
+  .card h2 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
+  .card ul { list-style: none; margin: 0; padding: 0; }
+  .card li { position: relative; padding: 7px 10px 7px 26px; border-radius: 8px; transition: background-color .4s; }
+  .card li::before { content: ""; position: absolute; left: 10px; top: 16px; width: 6px; height: 6px; border-radius: 50%; background: var(--brand); opacity: .55; }
+  .card li.hit { background: var(--hit); box-shadow: inset 3px 0 0 var(--hit-line); }
+  .card a { color: var(--brand-deep); }
+  .card-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+  .card-foot span { font-size: 13px; color: var(--muted); }
+  .ask-chip { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 5px 12px; font-size: 13.5px; cursor: pointer; text-align: left; }
+  .ask-chip:hover { border-color: var(--brand); }
+  .guides-note { max-width: 720px; margin-top: 18px; font-size: 13px; color: var(--muted); }
+
+  /* Chat */
+  .chat-head { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+  .chat-head h2 { margin: 0; font-size: 16px; }
+  .chat-head p { margin: 2px 0 0; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); flex: none; }
+  .scroll { flex: 1; overflow-y: auto; padding: 18px; min-height: 0; }
+  .empty { text-align: center; color: var(--muted); padding: 28px 8px 8px; }
+  .empty .big { width: 48px; height: 48px; border-radius: 14px; margin: 0 auto 12px; background: var(--brand-soft); color: var(--brand-deep); display: grid; place-items: center; }
+  .empty .big svg { width: 24px; height: 24px; }
+  .empty h3 { color: var(--ink); font-size: 16px; margin: 0 0 4px; }
+  .empty p { margin: 0 0 16px; font-size: 14px; }
+  .empty .ask-chip { display: block; width: 100%; margin-top: 8px; border-radius: 10px; padding: 9px 12px; }
+
+  .thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  .q { align-self: flex-end; max-width: 88%; background: var(--brand); color: var(--brand-ink); padding: 9px 13px; border-radius: var(--r) var(--r) 4px var(--r); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .a { background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px var(--r) var(--r) var(--r); padding: 12px 14px; }
   .a.not_found { background: var(--warn-soft); border-color: var(--warn-line); }
   .a.error { background: var(--err-soft); border-color: var(--err-line); }
-  .label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
-  .not_found .label { color: var(--warn); }
-  .error .label { color: var(--err); }
-  .invalid .label { color: var(--muted); }
-  .label svg { width: 14px; height: 14px; }
+  .label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 650; letter-spacing: .03em; text-transform: uppercase; color: var(--brand-deep); margin-bottom: 4px; }
+  .not_found .label { color: var(--warn); } .error .label { color: var(--err); } .invalid .label, .cancelled .label { color: var(--muted); }
+  .label svg { width: 14px; height: 14px; flex: none; }
   .a .text { overflow-wrap: anywhere; }
-  .a a { color: inherit; }
-  .sources { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); font-size: 13px; color: var(--muted); }
-  .src { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
-  .src:hover { border-color: var(--accent); }
-  .actions { margin-top: 10px; }
-  .btn-ghost { border: 1px solid currentColor; background: transparent; color: var(--err); border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; }
-  .meta { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .a .text a { color: inherit; }
+  .foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+  .src { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 3px 9px; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+  .src:hover { border-color: var(--brand); }
+  .src svg { width: 12px; height: 12px; }
+  .time { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+  .time svg { width: 12px; height: 12px; }
+  .btn-line { border: 1px solid currentColor; background: transparent; border-radius: 8px; padding: 4px 11px; font-size: 13px; cursor: pointer; }
+  .error .btn-line { color: var(--err); }
 
-  .typing { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); font-size: 14px; }
-  .dots { display: inline-flex; gap: 3px; margin-right: 6px; }
+  .pending .status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
+  .pending .status .elapsed { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+  .pending .slow { margin-top: 8px; font-size: 13.5px; color: var(--ink); display: none; }
+  .pending.is-slow .slow { display: block; }
+  .pending .cancel { margin-top: 8px; display: none; color: var(--muted); }
+  .pending.is-very-slow .cancel { display: inline-block; }
+  .dots { display: inline-flex; gap: 3px; }
   .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite ease-in-out; }
   .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
   @keyframes blink { 0%, 80%, 100% { opacity: .25 } 40% { opacity: 1 } }
-  @media (prefers-reduced-motion: reduce) { .dots i { animation: none; opacity: .6; } }
+  @media (prefers-reduced-motion: reduce) { .dots i { animation: none; opacity: .6; } .card li { transition: none; } }
 
-  .composer { position: sticky; bottom: 0; background: linear-gradient(to bottom, transparent, var(--bg) 18px); padding: 18px 0 calc(16px + env(safe-area-inset-bottom)); }
-  form { display: flex; gap: 8px; align-items: flex-end; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 6px 6px 6px 14px; box-shadow: var(--shadow); }
-  form:focus-within { border-color: var(--accent); }
+  .composer { padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--surface); }
+  form { display: flex; gap: 8px; align-items: flex-end; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 5px 5px 5px 12px; }
+  form:focus-within { border-color: var(--brand); }
+  textarea { flex: 1; border: 0; outline: 0; resize: none; background: transparent; color: var(--ink); font: inherit; padding: 7px 0; max-height: 140px; min-height: 22px; line-height: 1.5; }
   textarea:focus-visible { outline: none; }
-  textarea { flex: 1; border: 0; outline: 0; resize: none; background: transparent; color: var(--ink); font: inherit; padding: 8px 0; max-height: 160px; min-height: 24px; line-height: 1.5; }
-  .send { flex: none; height: 40px; min-width: 40px; padding: 0 16px; border: 0; border-radius: 11px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 600; cursor: pointer; }
-  .send:disabled { opacity: .45; cursor: default; }
-  .hint { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin: 8px 4px 0; }
-  @media (hover: none) { .kbd { display: none; } }
+  .send { flex: none; width: 38px; height: 38px; border: 0; border-radius: 10px; background: var(--brand); color: var(--brand-ink); cursor: pointer; display: grid; place-items: center; }
+  .send svg { width: 18px; height: 18px; }
+  .send:disabled { opacity: .4; cursor: default; }
+  .hint { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin: 7px 2px 0; }
   .count.over { color: var(--err); font-weight: 600; }
+  @media (hover: none) { .kbd { display: none; } }
 
-  dialog { width: min(560px, calc(100vw - 32px)); max-height: min(80vh, 640px); border: 1px solid var(--line); border-radius: 16px; padding: 0; background: var(--surface); color: var(--ink); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
-  dialog::backdrop { background: rgba(0,0,0,.35); }
-  .dlg-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); }
-  .dlg-head h3 { margin: 0; font-size: 16px; }
-  .close { border: 0; background: var(--surface-2); color: var(--ink); width: 32px; height: 32px; border-radius: 8px; font-size: 18px; cursor: pointer; flex: none; }
-  .doc { padding: 12px 16px 18px; }
-  .doc p { margin: 0; padding: 6px 8px; border-radius: 6px; }
-  .doc p.hit { background: var(--mark); }
-  .doc .legend { font-size: 12px; color: var(--muted); margin: 0 0 6px; padding: 0 8px; }
-  @media (max-width: 560px) {
-    dialog { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 16px 16px 0 0; max-height: 85vh; }
-    .intro h2 { font-size: 21px; }
+  /* Phones and small tablets: one pane at a time, switched by tabs */
+  @media (max-width: 900px) {
+    .top { padding: 0 16px; }
+    .top .hours { display: none; }
+    .tabs { flex: none; display: flex; gap: 4px; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+    .tabs button { flex: 1; border: 0; background: transparent; padding: 8px; border-radius: 9px; font-weight: 600; font-size: 14px; color: var(--muted); cursor: pointer; }
+    .tabs button[aria-selected="true"] { background: var(--brand-soft); color: var(--brand-deep); }
+    .shell { display: block; }
+    .guides, .chat { height: 100%; }
+    .chat { border-left: 0; }
+    .shell[data-pane="guides"] .chat, .shell[data-pane="chat"] .guides { display: none; }
+    .guides { padding: 20px 16px 32px; }
+    .hero h1 { font-size: 24px; }
+    .chat-head { display: none; }
   }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div class="logo" aria-hidden="true">B</div>
-    <div>
-      <h1>BrightPath Learn Help</h1>
-      <p>Answers come only from BrightPath's help documents</p>
-    </div>
-  </header>
+<header class="top">
+  <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/></svg></div>
+  <span class="brand">BrightPath Learn</span>
+  <span class="pill">Help Centre</span>
+  <span class="hours"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Support Monday to Friday, 09:00 to 17:00 UTC</span>
+</header>
 
-  <main>
-    <section class="intro" id="intro">
-      <h2>How can we help?</h2>
-      <p>Ask about lessons, coaching, feedback or your account. Every answer shows the document it came from.</p>
-      <div class="suggest" id="suggest">
-        <button class="chip" type="button">When is group coaching?</button>
-        <button class="chip" type="button">Does watching a video mark my lesson complete?</button>
-        <button class="chip" type="button">How long does feedback on practice work take?</button>
-        <button class="chip" type="button">I forgot my password</button>
-      </div>
+<nav class="tabs" role="tablist" aria-label="Sections">
+  <button type="button" role="tab" id="tab-guides" aria-selected="false" data-pane="guides">Guides</button>
+  <button type="button" role="tab" id="tab-chat" aria-selected="true" data-pane="chat">Ask a question</button>
+</nav>
+
+<div class="shell" id="shell" data-pane="chat">
+  <main class="guides" id="guides">
+    <section class="hero">
+      <h1>How can we help?</h1>
+      <p>Guides for getting started, coaching and your account. Ask the help desk anything about them, and every answer points back to the guide it came from.</p>
+      <div class="jump" id="jump"></div>
     </section>
-    <ol class="thread" id="thread" aria-live="polite" aria-label="Conversation"></ol>
+    <div class="cards" id="cards"><p class="guides-note">Loading guides...</p></div>
+    <p class="guides-note">Can't find what you need? Email <a href="mailto:support@brightpath.example">support@brightpath.example</a>.</p>
   </main>
 
-  <div class="composer">
-    <form id="form">
-      <label for="q" class="sr-only">Your question</label>
-      <textarea id="q" rows="1" maxlength="600" placeholder="Type your question" autocomplete="off"></textarea>
-      <button class="send" id="send" type="submit" disabled>Ask</button>
-    </form>
-    <div class="hint"><span><span class="kbd">Enter to send, Shift+Enter for a new line. </span>Never share your password.</span><span class="count" id="count"></span></div>
-  </div>
+  <aside class="chat" aria-label="Help desk chat">
+    <div class="chat-head">
+      <h2>Ask the help desk</h2>
+      <p><span class="dot" aria-hidden="true"></span>Answers only from the guides on this page</p>
+    </div>
+    <div class="scroll" id="scroll">
+      <div class="empty" id="empty">
+        <div class="big" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div>
+        <h3>Ask a question</h3>
+        <p>Try one of these, or type your own.</p>
+        <button class="ask-chip" type="button">When is group coaching?</button>
+        <button class="ask-chip" type="button">Does watching a video mark my lesson complete?</button>
+        <button class="ask-chip" type="button">I forgot my password</button>
+      </div>
+      <ol class="thread" id="thread" aria-live="polite" aria-label="Conversation"></ol>
+    </div>
+    <div class="composer">
+      <form id="form">
+        <label for="q" class="sr-only">Your question</label>
+        <textarea id="q" rows="1" maxlength="600" placeholder="Type your question" autocomplete="off"></textarea>
+        <button class="send" id="send" type="submit" disabled aria-label="Send question"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </form>
+      <div class="hint"><span><span class="kbd">Enter to send, Shift+Enter for a new line. </span>Never share your password.</span><span class="count" id="count"></span></div>
+    </div>
+  </aside>
 </div>
-
-<dialog id="dlg" aria-labelledby="dlg-title">
-  <div class="dlg-head"><h3 id="dlg-title"></h3><button class="close" id="dlg-close" type="button" aria-label="Close">×</button></div>
-  <div class="doc" id="dlg-body"></div>
-</dialog>
 
 <script>
 (() => {
   const MAX = 500;
+  const SLOW_MS = 6000;        // show "slower than usual"
+  const VERY_SLOW_MS = 15000;  // offer Cancel
   const $ = (id) => document.getElementById(id);
-  const form = $('form'), input = $('q'), send = $('send'), thread = $('thread'), intro = $('intro'), count = $('count');
-  const dlg = $('dlg'), dlgTitle = $('dlg-title'), dlgBody = $('dlg-body');
+  const shell = $('shell'), form = $('form'), input = $('q'), send = $('send'), thread = $('thread'), empty = $('empty'), count = $('count'), scroller = $('scroll');
   let busy = false;
-  // The three source documents are small and public: load them once with the page
-  // so "view source" opens instantly.
-  const documentsReady = fetch('/api/documents').then((r) => r.json()).catch(() => null);
-  // Same pattern the server uses: a typed password is masked in the conversation.
-  const SECRET = /\b(password|passcode|passwd|pwd|pin)(\s*(?:is|was|=|:)\s*)(\S+)/gi;
-  const mask = (s) => s.replace(SECRET, (_, k, sep) => k + sep + '••••••');
 
-  const ICONS = {
-    answered: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3 3 7-7"/></svg>',
-    not_found: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>',
-    invalid: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>',
-    error: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2l6.5 11.5h-13z"/><path d="M8 6.5v3M8 11.5h.01"/></svg>',
+  const SVG = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const TOPIC_ICONS = {
+    doc1: SVG('<path d="M6 4l13 8-13 8z"/>'),
+    doc2: SVG('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.5c1.6.7 2.7 2.4 3 5.5"/>'),
+    doc3: SVG('<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>'),
   };
-  const LABELS = { answered: 'From the help documents', not_found: 'Not in the help documents', invalid: 'Please check your question', error: 'Help desk unavailable' };
+  const TOPIC_QUESTIONS = {
+    doc1: ['How many lessons are in Foundations?', 'How do I save my progress?'],
+    doc2: ['When is group coaching?', 'How long does feedback take?'],
+    doc3: ['I forgot my password', 'My lesson progress is wrong'],
+  };
+  const STATUS = {
+    answered: { label: 'From the guides', icon: '<path d="M5 12.5l4.5 4.5L19 7.5"/>' },
+    not_found: { label: 'Not in the guides', icon: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>' },
+    invalid: { label: 'Please check your question', icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/>' },
+    error: { label: 'Help desk unavailable', icon: '<path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5h.01"/>' },
+    cancelled: { label: 'Cancelled', icon: '<circle cx="12" cy="12" r="9"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7"/>' },
+  };
 
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-  const norm = (s) => s.replace(/\s+/g, ' ').replace(/[‘’]/g, "'").replace(/[–—]/g, '-').trim().toLowerCase();
+  const norm = (s) => s.replace(/\s+/g, ' ').trim().toLowerCase();
+  const SECRET = /\b(password|passcode|passwd|pwd|pin)(\s*(?:is|was|=|:)\s*)(\S+)/gi;
+  const mask = (s) => s.replace(SECRET, (_, k, sep) => k + sep + '******');
+  const seconds = (ms) => (ms < 10000 ? (ms / 1000).toFixed(1) : String(Math.round(ms / 1000))) + ' s';
 
+  // Email addresses in text become mailto links; everything else stays text.
+  function richText(text) {
+    const frag = document.createDocumentFragment();
+    String(text).split(/(\b[\w.+-]+@[\w-]+\.[\w.]+\b)/).forEach((part, i) => {
+      if (i % 2) { const a = el('a', '', part); a.href = 'mailto:' + part; frag.append(a); } else frag.append(part);
+    });
+    return frag;
+  }
+
+  function showPane(pane) {
+    shell.dataset.pane = pane;
+    document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.pane === pane)));
+  }
+  const isNarrow = () => window.matchMedia('(max-width: 900px)').matches;
+
+  // ---- Guides (left), built from the same documents the help desk answers from ----
+  async function loadGuides() {
+    const cards = $('cards'), jump = $('jump');
+    let docs;
+    try { docs = await (await fetch('/api/documents')).json(); }
+    catch { cards.replaceChildren(el('p', 'guides-note', 'The guides could not be loaded. Refresh the page to try again.')); return; }
+    cards.replaceChildren();
+    docs.forEach((d) => {
+      const card = el('section', 'card'); card.id = d.id; card.setAttribute('aria-labelledby', d.id + '-h');
+      const head = el('div', 'card-head');
+      const icon = el('div', 'icon'); icon.innerHTML = TOPIC_ICONS[d.id] || ''; icon.setAttribute('aria-hidden', 'true');
+      const h = el('h2', '', d.title); h.id = d.id + '-h';
+      head.append(icon, h);
+      const ul = el('ul');
+      d.lines.forEach((line) => { const li = el('li'); li.dataset.norm = norm(line); li.append(richText(line)); ul.append(li); });
+      const foot = el('div', 'card-foot');
+      foot.append(el('span', '', 'Ask:'));
+      (TOPIC_QUESTIONS[d.id] || []).forEach((q) => { const b = el('button', 'ask-chip', q); b.type = 'button'; foot.append(b); });
+      card.append(head, ul, foot);
+      cards.append(card);
+      const a = el('a', '', d.title); a.href = '#' + d.id; jump.append(a);
+    });
+  }
+
+  // Highlights the guide lines an answer was built from.
+  function showSource(id, quotes) {
+    document.querySelectorAll('.card li.hit').forEach((li) => li.classList.remove('hit'));
+    const card = $(id);
+    if (!card) return;
+    const nq = quotes.map(norm);
+    let first = null;
+    card.querySelectorAll('li').forEach((li) => {
+      const n = li.dataset.norm;
+      if (nq.some((q) => n.includes(q) || q.includes(n))) { li.classList.add('hit'); first = first || li; }
+    });
+    if (isNarrow()) showPane('guides');
+    (first || card).scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  // ---- Chat (right) ----
   function update() {
     input.style.height = 'auto';
-    input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+    input.style.height = Math.min(input.scrollHeight, 140) + 'px';
     const n = input.value.trim().length;
     count.textContent = n > MAX - 100 ? `${n}/${MAX}` : '';
     count.classList.toggle('over', n > MAX);
     send.disabled = busy || n === 0 || n > MAX;
   }
 
-  // Turns support@... in plain text into a mailto link, everything else stays text.
-  function richText(text) {
-    const frag = document.createDocumentFragment();
-    text.split(/(\b[\w.+-]+@[\w-]+\.[\w.]+\b)/).forEach((part, i) => {
-      if (i % 2) { const a = el('a', '', part); a.href = 'mailto:' + part; frag.append(a); }
-      else frag.append(part);
-    });
-    return frag;
-  }
-
-  function answerCard(r, question) {
+  function answerCard(r, question, ms) {
+    const s = STATUS[r.status] || STATUS.error;
     const li = el('li', 'a ' + r.status);
-    const label = el('div', 'label');
-    label.innerHTML = ICONS[r.status] || '';
-    label.append(LABELS[r.status] || '');
-    const text = el('div', 'text');
-    text.append(richText(r.answer));
+    const label = el('div', 'label'); label.innerHTML = SVG(s.icon); label.append(s.label);
+    const text = el('div', 'text'); text.append(richText(r.answer));
     li.append(label, text);
 
-    if (r.sources && r.sources.length) {
-      const s = el('div', 'sources', 'Source:');
-      r.sources.forEach((src) => {
-        const b = el('button', 'src', src.title.replace(/^Document \d+\s*[—-]\s*/, ''));
-        b.type = 'button';
-        b.title = 'Show where this answer comes from';
-        b.addEventListener('click', () => openDoc(src.id, r.quotes));
-        s.append(b);
-      });
-      li.append(s);
-    }
-    if (r.status === 'error') {
-      const row = el('div', 'actions');
-      const retry = el('button', 'btn-ghost', 'Try again');
-      retry.type = 'button';
+    const foot = el('div', 'foot');
+    (r.sources || []).forEach((src) => {
+      const b = el('button', 'src'); b.type = 'button';
+      b.innerHTML = SVG('<path d="M4 5h11a3 3 0 0 1 3 3v12H7a3 3 0 0 1-3-3z"/><path d="M8 9h6M8 13h6"/>');
+      b.append(src.title); b.title = 'Show the supporting lines in the guide';
+      b.addEventListener('click', () => showSource(src.id, r.quotes || []));
+      foot.append(b);
+    });
+    if (r.status === 'error' || r.status === 'cancelled') {
+      const retry = el('button', 'btn-line', 'Try again'); retry.type = 'button';
       retry.addEventListener('click', () => { li.remove(); askQuestion(question, true); });
-      row.append(retry);
-      li.append(row);
+      foot.append(retry);
     }
+    if (ms != null && r.status !== 'invalid' && r.status !== 'cancelled') {
+      const t = el('span', 'time'); t.innerHTML = SVG('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
+      t.append(r.cached ? `${seconds(ms)}, saved answer` : seconds(ms));
+      t.title = r.cached ? 'Same question as before, so the earlier answer was reused' : 'Response time';
+      foot.append(t);
+    }
+    if (foot.childNodes.length) li.append(foot);
     return li;
+  }
+
+  function pendingCard(onCancel) {
+    const li = el('li', 'a pending'); li.setAttribute('aria-busy', 'true');
+    const status = el('div', 'status');
+    status.innerHTML = '<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>';
+    const elapsed = el('span', 'elapsed', '0 s');
+    status.append(el('span', '', 'Checking the guides'), elapsed);
+    const slow = el('div', 'slow'); slow.setAttribute('role', 'status');
+    const cancel = el('button', 'btn-line cancel', 'Cancel'); cancel.type = 'button';
+    cancel.addEventListener('click', onCancel);
+    li.append(status, slow, cancel);
+    const started = performance.now();
+    // Redraw-only timer: updates the counter and wording, never calls the server.
+    const tick = setInterval(() => {
+      const ms = performance.now() - started;
+      elapsed.textContent = Math.floor(ms / 1000) + ' s';
+      if (ms > SLOW_MS && !li.classList.contains('is-slow')) {
+        li.classList.add('is-slow');
+        slow.textContent = 'The AI model is slower than usual right now. Still working on it.';
+      }
+      if (ms > VERY_SLOW_MS && !li.classList.contains('is-very-slow')) {
+        li.classList.add('is-very-slow');
+        slow.textContent = 'This is taking longer than it should. You can keep waiting, or cancel and try again.';
+      }
+    }, 250);
+    return { li, started, stop: () => clearInterval(tick) };
   }
 
   async function askQuestion(question, isRetry = false) {
     if (busy) return;
     busy = true; update();
-    intro.hidden = true;
+    if (isNarrow()) showPane('chat');
+    empty.hidden = true;
     if (!isRetry) thread.append(el('li', 'q', mask(question)));
-    const wait = el('li', 'a');
-    wait.setAttribute('aria-busy', 'true');
-    const t = el('span', 'typing');
-    t.innerHTML = '<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>';
-    t.append('Checking the help documents…');
-    wait.append(t);
-    thread.append(wait);
-    wait.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    const controller = new AbortController();
+    const pending = pendingCard(() => controller.abort());
+    thread.append(pending.li);
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
 
     let r;
     try {
-      const res = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question }) });
+      const res = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question }), signal: controller.signal });
       r = await res.json();
       if (!r || typeof r.answer !== 'string') throw new Error('bad reply');
-    } catch {
-      r = { status: 'error', answer: "Can't reach the help desk. Check your connection and try again.", sources: [], quotes: [] };
+    } catch (err) {
+      r = err.name === 'AbortError'
+        ? { status: 'cancelled', answer: 'You cancelled this question.', sources: [] }
+        : { status: 'error', answer: "Can't reach the help desk. Check your connection and try again.", sources: [] };
     }
-    const card = answerCard(r, question);
-    wait.replaceWith(card);
-    card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    pending.stop();
+    const card = answerCard(r, question, performance.now() - pending.started);
+    pending.li.replaceWith(card);
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
     busy = false; update();
-    input.focus();
-  }
-
-  async function openDoc(id, quotes) {
-    const documents = await documentsReady;
-    const d = documents && documents.find((x) => x.id === id);
-    if (!d) return;
-    dlgTitle.textContent = d.title;
-    dlgBody.replaceChildren();
-    const nq = (quotes || []).map(norm);
-    dlgBody.append(el('p', 'legend', 'Highlighted lines support the answer.'));
-    d.text.split('\n').slice(1).filter((l) => l.trim()).forEach((line) => {
-      const nl = norm(line);
-      const hit = nq.some((q) => nl.includes(q) || q.includes(nl));
-      dlgBody.append(el('p', hit ? 'hit' : '', line));
-    });
-    dlg.showModal();
-    const first = dlgBody.querySelector('.hit');
-    if (first) first.scrollIntoView({ block: 'center' });
+    if (!isNarrow()) input.focus();
   }
 
   form.addEventListener('submit', (e) => {
@@ -266,14 +390,15 @@
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
   });
-  $('suggest').addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip');
+  document.addEventListener('click', (e) => {
+    const chip = e.target.closest('.ask-chip');
     if (chip && !busy) askQuestion(chip.textContent);
   });
-  $('dlg-close').addEventListener('click', () => dlg.close());
-  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+  document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showPane(b.dataset.pane)));
+
+  loadGuides();
   update();
-  input.focus();
+  if (!isNarrow()) input.focus();
 })();
 </script>
 </body>

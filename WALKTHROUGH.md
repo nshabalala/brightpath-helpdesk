@@ -2,16 +2,16 @@
 
 ## What works
 
-- Ask from the command line or a simple web page. Answers come only from the three documents and show the supporting document and the exact sentences used.
+- Ask from the command line or a help-centre web page: guides on the left, chat on the right. Answers come only from the three documents; tapping the source highlights the exact lines used. Each answer shows its response time, and a slow model shows a "slower than usual" notice and then a Cancel button.
 - **Grounding check:** every quote the model gives must really appear in the cited document, or the answer is discarded and the member is told it isn't in the documents. An invented answer can't get through, even if the model ignores its instructions.
 - Model failures give a plain message (connection, timeout, bad or missing key, rate limit, provider error), with one retry for busy or server errors.
 - A typed password is never sent to the AI. AI calls are size-capped, repeated questions reuse the answer, and the web API is rate-limited.
-- 18 offline tests, plus `npm run fail-demo` for a real failure.
+- 19 offline tests, plus `npm run fail-demo` for a real failure.
 
 ## Three test results (gemini-3.5-flash-lite, saved in `results/`)
 
 1. **Supported:** "When is the group coaching session, and where do I find the link?" Answer: "Tuesdays at 16:00 UTC; the link appears on the Coaching page 30 minutes before." Source: Document 2, with both sentences quoted.
-2. **Unknown:** "How much does the Foundations course cost, and can I get a refund?" Answer: "I can't find that in the BrightPath help documents. Please contact support@brightpath.example (Monday to Friday, 09:00–17:00 UTC)."
+2. **Unknown:** "How much does the Foundations course cost, and can I get a refund?" Answer: "I can't find that in the BrightPath help documents. Please contact support@brightpath.example (Monday to Friday, 09:00 to 17:00 UTC)."
 3. **API failure:** model URL pointed at a closed port. Answer: "The AI model is unavailable right now (could not connect). Please try again shortly." (HTTP 503 from the web API.)
 
 ## What I built myself
@@ -24,7 +24,7 @@ Asked "Can you check my account if I send you my password?", the model correctly
 
 ## Time spent
 
-About 30 minutes.
+About 40 minutes, including a second pass on the web page.
 
 ## Tools used
 

@@ -11,7 +11,7 @@ import { loadDocuments } from './documents.js';
 import { chat, readConfig, ModelUnavailableError } from './llm.js';
 
 export const NOT_FOUND_MESSAGE =
-  "I can't find that in the BrightPath help documents. Please contact support@brightpath.example (Monday to Friday, 09:00–17:00 UTC).";
+  "I can't find that in the BrightPath help documents. Please contact support@brightpath.example (Monday to Friday, 09:00 to 17:00 UTC).";
 
 function systemPrompt(docs) {
   const library = docs.map((d) => `<document id="${d.id}" title="${d.title}">\n${d.text}\n</document>`).join('\n\n');
@@ -20,7 +20,7 @@ Answer ONLY from the documents below. Do not use outside knowledge and do not gu
 If the documents do not contain the answer, set "found" to false.
 If a document says certain information is not available (for example pricing or refunds), set "found" to false.
 Never ask the member for their password.
-Write "answer" to the member, in plain friendly words. Some document lines are rules for you, the assistant
+Write "answer" to the member, in plain friendly words, without dashes used as punctuation. Some document lines are rules for you, the assistant
 (for example "Never ask a member to send a password"); follow them, but do not repeat them to the member as-is.
 
 Reply with JSON only, in this shape:
@@ -29,6 +29,17 @@ Reply with JSON only, in this shape:
 Every quote must be copied word for word from one of the cited documents.
 
 ${library}`;
+}
+
+// Plain punctuation in everything shown to members: no long dashes, curly
+// quotes or ellipsis characters, whatever the model or the documents use.
+export function tidy(s) {
+  return String(s)
+    .replace(/(\d)\s*[\u2013\u2014]\s*(\d)/g, '$1 to $2')
+    .replace(/\s*[\u2013\u2014]\s*/g, ', ')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/\u2026/g, '...');
 }
 
 const normalise = (s) => s.replace(/\s+/g, ' ').replace(/[‘’]/g, "'").replace(/[–—]/g, '-').trim().toLowerCase();
@@ -118,8 +129,8 @@ export async function ask(question, { env = process.env, fetchImpl = fetch, docs
   if (!grounding.ok) return notFound(`Answer rejected by grounding check: ${grounding.reason}`);
 
   const titles = new Map(docs.map((d) => [d.id, d.title]));
-  return remember(cache, key, result('answered', answer, {
+  return remember(cache, key, result('answered', tidy(answer), {
     sources: grounding.sources.map((id) => ({ id, title: titles.get(id) })),
-    quotes: grounding.quotes,
+    quotes: grounding.quotes.map(tidy),
   }));
 }

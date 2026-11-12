@@ -3,7 +3,7 @@
 // answer quality. Real-model results are in results/results.md.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ask as realAsk, NOT_FOUND_MESSAGE } from '../src/helpdesk.js';
+import { ask as realAsk, NOT_FOUND_MESSAGE, tidy } from '../src/helpdesk.js';
 
 // Each test gets no cache unless it asks for one.
 const ask = (q, o = {}) => realAsk(q, { cache: null, ...o });
@@ -138,4 +138,12 @@ test('a hosted provider with no key gives a clear message; a local model needs n
   const local = { LLM_BASE_URL: 'http://localhost:11434/v1', LLM_MODEL: 'm', LLM_RETRY_DELAY_MS: '0' };
   const r = await ask('x', { env: local, fetchImpl: reply({ found: false, answer: '', sources: [], quotes: [] }) });
   assert.equal(r.status, 'not_found');
+});
+
+test('answers and messages use plain punctuation', async () => {
+  assert.equal(tidy('Support is 09:00\u201317:00 UTC \u2014 weekdays\u2026 \u201Cok\u201D'), 'Support is 09:00 to 17:00 UTC, weekdays... "ok"');
+  assert.doesNotMatch(NOT_FOUND_MESSAGE, /[\u2013\u2014]/);
+  const r = await ask('When?', { env, fetchImpl: reply({ found: true, answer: 'Tuesdays \u2014 16:00 UTC.', sources: ['doc2'], quotes: ['A group coaching session takes place every Tuesday at 16:00 UTC.'] }) });
+  assert.equal(r.answer, 'Tuesdays, 16:00 UTC.');
+  assert.equal(r.sources[0].title, 'Coaching and feedback');
 });

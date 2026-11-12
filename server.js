@@ -1,18 +1,28 @@
 // Tiny web UI + JSON API. No dependencies.
 //   GET  /                -> the help desk page
-//   GET  /api/documents   -> the three (fictional, public) source documents
+//   GET  /api/documents   -> the member-facing lines of the three guides
 //   POST /api/ask         -> { question } => { status, answer, sources, quotes }
 //
 // Listens on 127.0.0.1 only by default. Set HOST=0.0.0.0 to expose it.
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
-import { ask, MAX_QUESTION_LENGTH } from './src/helpdesk.js';
+import { ask, tidy, MAX_QUESTION_LENGTH } from './src/helpdesk.js';
 import { loadDocuments } from './src/documents.js';
 
 const PORT = Number(process.env.PORT || 8790);
 const HOST = process.env.HOST || '127.0.0.1';
 const page = readFileSync(new URL('./public/index.html', import.meta.url));
-const documents = JSON.stringify(loadDocuments().map(({ id, title, text }) => ({ id, title, text })));
+// The guides shown on the site, one entry per line. Lines that are instructions
+// for the assistant (not for members) are left out: they never reach the browser.
+const STAFF_LINE = /^(This document does not contain|Never ask a member)/;
+const documents = JSON.stringify(
+  loadDocuments().map(({ id, title, text }) => ({
+    id,
+    title,
+    lines: text.split('\n').slice(1).map((l) => l.trim()).filter((l) => l && !l.startsWith('Platform:'))
+      .filter((l) => !STAFF_LINE.test(l)).map(tidy),
+  }))
+);
 
 // There is no sign-in (the brief says none is needed), so each visitor is
 // limited instead: at most LIMIT model questions per WINDOW_MS per IP address.
@@ -72,4 +82,4 @@ createServer(async (req, res) => {
     console.error('[helpdesk] unexpected error:', err?.name || 'Error');
     if (!res.headersSent) send(res, 500, { status: 'error', answer: 'Something went wrong on our side. Please try again.', sources: [], quotes: [] });
   }
-}).listen(PORT, HOST, () => console.log(`BrightPath help desk on http://localhost:${PORT}`));
+}).listen(PORT, HOST, () => console.log(`BrightPath help desk on http://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}`));

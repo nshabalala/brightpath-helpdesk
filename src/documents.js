@@ -13,7 +13,8 @@ export function loadDocuments(dir = DOCS_DIR) {
     .sort()
     .map((file) => {
       const text = readFileSync(join(dir, file), 'utf8').trim();
-      const title = text.split('\n')[0].replace(/^#\s*/, '');
+      // "# Document 2 — Coaching and feedback" -> "Coaching and feedback"
+      const title = text.split('\n')[0].replace(/^#\s*Document\s+\d+\s*[\u2013\u2014-]\s*/, '');
       const id = `doc${file.split('-')[0]}`; // "1-getting-started.md" -> "doc1"
       return { id, file, title, text };
     });
