@@ -11,6 +11,6 @@
     "start": "node --env-file-if-exists=.env server.js",
     "test": "node --test",
     "cases": "node --env-file-if-exists=.env scripts/run-cases.js",
-    "fail-demo": "LLM_BASE_URL=http://127.0.0.1:9/v1 node --env-file-if-exists=.env cli.js \"How do I reset my password?\""
+    "fail-demo": "node --env-file-if-exists=.env scripts/fail-demo.js"
   }
 }

@@ -23,7 +23,7 @@ Full output in `results/results.md`.
 
 ## What I built myself
 
-I designed the approach and directed the build: whole-document context instead of retrieval (the docs are tiny), strict JSON output, the quote-grounding check, the error mapping, the single retry, the password guard and cost limits, and the web page's states. I used Claude Code (an AI coding agent) to write most of the code and tests and to run them against the real model; every result above comes from those runs and is saved in `results/`. I reviewed the code and can walk through it.
+I directed the build with Claude Code, an AI coding agent: I set the goal and the constraints, chose and set up the model, and reviewed the results and the code. The safety and cost guards come from engineering rules I apply to my own production apps: never send a secret to a third party, cap every AI call, reuse identical answers, and never show internal diagnostics to users. Claude Code proposed the detailed design (whole-document context, strict JSON output, the quote-grounding check, error mapping, single retry), wrote most of the code and tests, and ran them against the real model. Every result above comes from those runs and is saved in `results/`. I can walk through how each part works.
 
 ## Problems found while testing
 
@@ -34,3 +34,22 @@ I designed the approach and directed the build: whole-document context instead o
 ## What I would improve
 
 Rule lines get quoted to members: asked "Can you check my account if I send you my password?", the model refuses correctly and points to support, but repeats the staff rule "Never ask a member to send a password" verbatim. A prompt instruction did not fix it on the lite model. Next step: tag rule lines in the documents and exclude them from member-facing quotes, then add this question to a small fixed evaluation set (answerable, unanswerable and trick questions) run on every prompt or model change.
+
+## Time spent
+
+About 30 minutes of build time, plus a few minutes setting up a free model key.
+
+## Tools used
+
+- **Claude Code** (AI coding agent, Claude Opus model): proposed the detailed design, wrote most of the code and tests, ran them, and drove the browser checks of the web page.
+- **Google AI Studio, `gemini-3.5-flash-lite`** (free tier): the model that answers questions. Any OpenAI-compatible endpoint works by changing `.env`.
+- **Node.js 22 built-ins only:** `http`, `fetch`, `node:test`. No npm libraries, templates or UI kits.
+
+## Unfinished or limited
+
+- The model sometimes repeats internal rule lines word for word (see "What I would improve").
+- Quote checking is exact-match, so a correct answer with a slightly paraphrased quote is shown as "not found". That is the safe direction, but it can hide good answers.
+- All three documents are sent with every question. Fine for three short documents; it would need search over chunks to scale.
+- No hosted demo: it runs locally with your own free key (see README). The reviewer needs a key to see real answers; `npm test` and `npm run fail-demo` work without one.
+- The rate limit and answer cache live in memory, so they reset when the server restarts. Fine for one local process.
+- Assumption: questions are in English.

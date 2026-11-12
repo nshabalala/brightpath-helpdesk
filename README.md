@@ -19,7 +19,7 @@ Any OpenAI-compatible endpoint works (Gemini via AI Studio, Groq, Ollama, LM Stu
 
 ```bash
 npm test          # offline logic tests (model replaced by a stub)
-npm run fail-demo # real API failure: points the model URL at a closed port
+npm run fail-demo # real API failure: points the model URL at a closed port (no key needed)
 npm run cases     # the three required cases against the real model -> results/
 ```
 
