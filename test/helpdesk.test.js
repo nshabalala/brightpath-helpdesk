@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ask, NOT_FOUND_MESSAGE } from '../src/helpdesk.js';
 
-const env = { LLM_BASE_URL: 'http://stub', LLM_MODEL: 'stub', LLM_TIMEOUT_MS: '200' };
+const env = { LLM_BASE_URL: 'http://stub', LLM_MODEL: 'stub', LLM_TIMEOUT_MS: '200', LLM_RETRY_DELAY_MS: '0' };
 const reply = (obj, status = 200) => async () =>
   new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(obj) } }] }), { status });
 
@@ -54,6 +54,20 @@ test('timeout -> clear unavailable message', async () => {
 test('rate limit and bad key give specific messages', async () => {
   assert.match((await ask('x', { env, fetchImpl: reply({}, 429) })).answer, /rate limiting/);
   assert.match((await ask('x', { env, fetchImpl: reply({}, 401) })).answer, /key was rejected/);
+});
+
+test('one retry on a server error, then success', async () => {
+  let calls = 0;
+  const fetchImpl = async (...a) => (++calls === 1 ? reply({}, 500)() : reply({ found: false, answer: '', sources: [], quotes: [] })());
+  const r = await ask('x', { env, fetchImpl });
+  assert.equal(calls, 2);
+  assert.equal(r.status, 'not_found');
+});
+
+test('a bad key is not retried', async () => {
+  let calls = 0;
+  await ask('x', { env, fetchImpl: async () => { calls++; return reply({}, 401)(); } });
+  assert.equal(calls, 1);
 });
 
 test('missing configuration is reported, not crashed on', async () => {
