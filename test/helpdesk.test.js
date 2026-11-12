@@ -44,19 +44,29 @@ test('citing a document that does not exist is rejected', async () => {
 test('connection failure -> clear unavailable message', async () => {
   const r = await ask('x', { env, fetchImpl: async () => { throw new TypeError('fetch failed'); } });
   assert.equal(r.status, 'error');
-  assert.match(r.answer, /unavailable.*could not connect/);
+  assert.equal(r.reason, 'unreachable');
+  assert.equal(r.setup, false);
+  assert.match(r.answer, /can't be reached/);
+  assert.match(r.hostHint, /Could not connect to http:\/\/stub/);
 });
 
 test('timeout -> clear unavailable message', async () => {
   const hang = (_url, { signal }) => new Promise((_, rej) => signal.addEventListener('abort', () => rej(Object.assign(new Error('aborted'), { name: 'AbortError' }))));
   const r = await ask('x', { env, fetchImpl: hang });
   assert.equal(r.status, 'error');
-  assert.match(r.answer, /no reply within/);
+  assert.equal(r.reason, 'timeout');
+  assert.match(r.hostHint, /No reply within 0.2 s/);
 });
 
 test('rate limit and bad key give specific messages', async () => {
-  assert.match((await ask('x', { env, fetchImpl: reply({}, 429) })).answer, /rate limiting/);
-  assert.match((await ask('x', { env, fetchImpl: reply({}, 401) })).answer, /key was rejected/);
+  const busy = await ask('x', { env, fetchImpl: reply({}, 429) });
+  assert.equal(busy.reason, 'rate_limited');
+  assert.equal(busy.setup, false);
+  const badKey = await ask('x', { env, fetchImpl: reply({}, 401) });
+  assert.equal(badKey.reason, 'key_rejected');
+  assert.equal(badKey.setup, true);
+  assert.match(badKey.answer, /waiting for the host/);
+  assert.match(badKey.hostHint, /rejected LLM_API_KEY/);
 });
 
 test('one retry on a server error, then success', async () => {
@@ -76,7 +86,10 @@ test('a bad key is not retried', async () => {
 test('missing configuration is reported, not crashed on', async () => {
   const r = await ask('x', { env: {} });
   assert.equal(r.status, 'error');
-  assert.match(r.answer, /No language model is configured/);
+  assert.equal(r.reason, 'not_configured');
+  assert.equal(r.setup, true);
+  assert.match(r.answer, /waiting for the host to connect a working AI model/);
+  assert.match(r.hostHint, /Copy .env.example to .env/);
 });
 
 test('unreadable model reply is reported', async () => {
@@ -123,7 +136,7 @@ test('errors are not cached', async () => {
 test('JSON null, a cut-off reply and a non-JSON body are handled', async () => {
   const body = (content, extra = {}) => async () => new Response(JSON.stringify({ choices: [{ message: { content }, ...extra }] }));
   assert.equal((await ask('x', { env, fetchImpl: body('null') })).status, 'error');
-  assert.match((await ask('x', { env, fetchImpl: body('{"found":', { finish_reason: 'length' }) })).answer, /ran out of room/);
+  assert.equal((await ask('x', { env, fetchImpl: body('{"found":', { finish_reason: 'length' }) })).reason, 'cut_off');
   assert.equal((await ask('x', { env, fetchImpl: async () => new Response('<html>oops</html>') })).status, 'error');
 });
 
@@ -134,7 +147,10 @@ test('found:true with an empty answer is treated as not found', async () => {
 
 test('a hosted provider with no key gives a clear message; a local model needs none', async () => {
   const noKey = { LLM_BASE_URL: 'https://example.com/v1', LLM_MODEL: 'm' };
-  assert.match((await ask('x', { env: noKey })).answer, /No API key is set/);
+  const nk = await ask('x', { env: noKey });
+  assert.equal(nk.reason, 'no_key');
+  assert.match(nk.answer, /waiting for the host/);
+  assert.match(nk.hostHint, /LLM_API_KEY is empty/);
   const local = { LLM_BASE_URL: 'http://localhost:11434/v1', LLM_MODEL: 'm', LLM_RETRY_DELAY_MS: '0' };
   const r = await ask('x', { env: local, fetchImpl: reply({ found: false, answer: '', sources: [], quotes: [] }) });
   assert.equal(r.status, 'not_found');
@@ -146,4 +162,25 @@ test('answers and messages use plain punctuation', async () => {
   const r = await ask('When?', { env, fetchImpl: reply({ found: true, answer: 'Tuesdays \u2014 16:00 UTC.', sources: ['doc2'], quotes: ['A group coaching session takes place every Tuesday at 16:00 UTC.'] }) });
   assert.equal(r.answer, 'Tuesdays, 16:00 UTC.');
   assert.equal(r.sources[0].title, 'Coaching and feedback');
+});
+
+test('every setup failure tells the member the help desk is waiting for the host', async () => {
+  const cases = [[400, 'request_rejected'], [403, 'key_rejected'], [404, 'model_not_found']];
+  for (const [status, reason] of cases) {
+    const r = await ask('x', { env, fetchImpl: reply({}, status) });
+    assert.equal(r.reason, reason);
+    assert.equal(r.setup, true);
+    assert.match(r.answer, /waiting for the host/);
+    assert.doesNotMatch(r.answer, /LLM_|\.env|HTTP/); // no setup jargon for members
+  }
+  assert.match((await ask('x', { env, fetchImpl: reply({}, 404) })).hostHint, /model "stub" was not found/);
+});
+
+test('temporary failures ask the member to try again, with no setup jargon', async () => {
+  const r = await ask('x', { env, fetchImpl: reply({}, 503) });
+  assert.equal(r.reason, 'provider_error');
+  assert.equal(r.setup, false);
+  assert.match(r.answer, /try again/);
+  assert.doesNotMatch(r.answer, /LLM_|\.env|HTTP/);
+  assert.match(r.hostHint, /HTTP 503/);
 });

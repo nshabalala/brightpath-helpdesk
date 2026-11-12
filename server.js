@@ -1,6 +1,7 @@
 // Tiny web UI + JSON API. No dependencies.
 //   GET  /                -> the help desk page
 //   GET  /api/documents   -> the member-facing lines of the three guides
+//   GET  /api/status      -> is the AI model ready, or waiting for the host?
 //   POST /api/ask         -> { question } => { status, answer, sources, quotes }
 //
 // Listens on 127.0.0.1 only by default. Set HOST=0.0.0.0 to expose it.
@@ -8,6 +9,14 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { ask, tidy, MAX_QUESTION_LENGTH } from './src/helpdesk.js';
 import { loadDocuments } from './src/documents.js';
+import { readConfig, ModelUnavailableError } from './src/llm.js';
+
+// ---- Start-up checks: fail early with a plain instruction, not a stack trace ----
+const fatal = (msg) => { console.error(`\n[helpdesk] Cannot start: ${msg}\n`); process.exit(1); };
+if (Number(process.versions.node.split('.')[0]) < 22) fatal(`Node.js 22 or newer is needed (this is ${process.version}). Install it from nodejs.org.`);
+let guides;
+try { guides = loadDocuments(); } catch { guides = []; }
+if (guides.length === 0) fatal('no documents found in ./docs. The three guide files must be there.');
 
 const PORT = Number(process.env.PORT || 8790);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -16,7 +25,7 @@ const page = readFileSync(new URL('./public/index.html', import.meta.url));
 // for the assistant (not for members) are left out: they never reach the browser.
 const STAFF_LINE = /^(This document does not contain|Never ask a member)/;
 const documents = JSON.stringify(
-  loadDocuments().map(({ id, title, text }) => ({
+  guides.map(({ id, title, text }) => ({
     id,
     title,
     lines: text.split('\n').slice(1).map((l) => l.trim()).filter((l) => l && !l.startsWith('Platform:'))
@@ -44,6 +53,29 @@ function allow(ip, now = Date.now()) {
 
 const HTTP_STATUS = { answered: 200, not_found: 200, invalid: 400, error: 503 };
 
+// ---- AI model status ----
+// A setup problem (no key, rejected key, unknown model) cannot fix itself: .env is
+// read once at start. So once one is known, questions are answered with the
+// "waiting for the host" message without calling the provider again, until the
+// host fixes .env and restarts. Temporary problems never lock it.
+let aiIssue = null; // { reason, message, hostHint }
+function noteIssue(reason, message, hostHint) {
+  if (aiIssue?.reason !== reason) console.warn(`\n[helpdesk] AI model not ready (${reason}). Host action: ${hostHint}\n`);
+  aiIssue = { reason, message, hostHint };
+}
+try { readConfig(); } catch (err) {
+  if (err instanceof ModelUnavailableError) noteIssue(err.kind, err.message, err.hostHint); else throw err;
+}
+
+// Setup instructions are for the host only: they are shown on the page only
+// when it is opened on the machine running the server.
+const isLocal = (req) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
+function forViewer(req, result) {
+  const { hostHint, setup, reason, ...rest } = result;
+  if (setup) rest.setup = true;
+  return isLocal(req) && hostHint ? { ...rest, reason, hostHint } : rest;
+}
+
 function send(res, code, body, type = 'application/json') {
   res.writeHead(code, {
     'Content-Type': type,
@@ -54,10 +86,15 @@ function send(res, code, body, type = 'application/json') {
   res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
 }
 
-createServer(async (req, res) => {
+const server = createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && req.url === '/') return send(res, 200, page, 'text/html; charset=utf-8');
     if (req.method === 'GET' && req.url === '/api/documents') return send(res, 200, documents);
+    if (req.method === 'GET' && req.url === '/api/status') {
+      return send(res, 200, aiIssue
+        ? forViewer(req, { ai: 'waiting_for_host', reason: aiIssue.reason, message: aiIssue.message, setup: true, hostHint: aiIssue.hostHint })
+        : { ai: 'ready' });
+    }
     if (req.url !== '/api/ask') return send(res, 404, { status: 'invalid', answer: 'Not found.' });
     if (req.method !== 'POST') return send(res, 405, { status: 'invalid', answer: 'Use POST.' });
 
@@ -75,11 +112,27 @@ createServer(async (req, res) => {
       return send(res, 429, { status: 'invalid', answer: 'You have asked a lot of questions in a short time. Please wait a minute and try again.', sources: [], quotes: [] });
     }
 
+    if (aiIssue) {
+      return send(res, 503, forViewer(req, { status: 'error', answer: aiIssue.message, sources: [], quotes: [], reason: aiIssue.reason, setup: true, hostHint: aiIssue.hostHint }));
+    }
+
     const { note, ...result } = await ask(question);
     if (note) console.log(`[helpdesk] ${note}`); // diagnostic only, never sent to the browser; contains no question text
-    return send(res, HTTP_STATUS[result.status] ?? 500, result);
+    if (result.status === 'error' && result.setup) noteIssue(result.reason, result.answer, result.hostHint);
+    else if (result.status === 'error') console.warn(`[helpdesk] AI model problem (${result.reason}): ${result.hostHint}`);
+    return send(res, HTTP_STATUS[result.status] ?? 500, forViewer(req, result));
   } catch (err) {
     console.error('[helpdesk] unexpected error:', err?.name || 'Error');
     if (!res.headersSent) send(res, 500, { status: 'error', answer: 'Something went wrong on our side. Please try again.', sources: [], quotes: [] });
   }
-}).listen(PORT, HOST, () => console.log(`BrightPath help desk on http://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}`));
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') fatal(`port ${PORT} is already in use by another program. Stop it, or start on another port: PORT=${PORT + 1} npm start`);
+  if (err.code === 'EACCES') fatal(`no permission to use port ${PORT}. Use a port above 1024: PORT=8790 npm start`);
+  fatal(err.message);
+});
+server.listen(PORT, HOST, () => {
+  console.log(`BrightPath help desk on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
+  console.log(aiIssue ? '[helpdesk] Guides work; questions will say the help desk is waiting for the host until the model is set up.' : '[helpdesk] AI model configured.');
+});

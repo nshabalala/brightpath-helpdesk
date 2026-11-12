@@ -5,6 +5,11 @@ import { createInterface } from 'node:readline/promises';
 import { ask } from './src/helpdesk.js';
 import { formatResult } from './src/format.js';
 
+if (Number(process.versions.node.split('.')[0]) < 22) {
+  console.error(`Node.js 22 or newer is needed (this is ${process.version}). Install it from nodejs.org.`);
+  process.exit(1);
+}
+
 const question = process.argv.slice(2).join(' ');
 
 if (question) {

@@ -82,7 +82,7 @@ const result = (status, answer, extra = {}) => ({ status, answer, sources: [], q
 /**
  * @returns {Promise<{status: 'answered'|'not_found'|'invalid'|'error', answer: string, sources: {id,title}[], quotes: string[], note?: string, cached?: boolean}>}
  *   invalid = problem with the question itself (never sent to the model)
- *   error   = the model could not be used
+ *   error   = the model could not be used (reason, setup and hostHint say why and who must act)
  *   note    = internal diagnostic, for the CLI and logs only
  */
 export async function ask(question, { env = process.env, fetchImpl = fetch, docs = loadDocuments(), cache = defaultCache } = {}) {
@@ -106,7 +106,7 @@ export async function ask(question, { env = process.env, fetchImpl = fetch, docs
       fetchImpl
     );
   } catch (err) {
-    if (err instanceof ModelUnavailableError) return result('error', err.message);
+    if (err instanceof ModelUnavailableError) return result('error', err.message, { reason: err.kind, setup: err.setup, hostHint: err.hostHint });
     throw err;
   }
 
@@ -117,7 +117,8 @@ export async function ask(question, { env = process.env, fetchImpl = fetch, docs
     parsed = null;
   }
   if (!parsed || typeof parsed !== 'object') {
-    return result('error', 'The AI model sent back a reply I could not read. Please try again.');
+    const e = new ModelUnavailableError('bad_reply');
+    return result('error', e.message, { reason: e.kind, setup: false, hostHint: e.hostHint });
   }
 
   const key = cacheKey(config, q);

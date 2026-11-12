@@ -4,9 +4,9 @@
 
 - Ask from the command line or a help-centre web page: guides on the left, chat on the right. Answers come only from the three documents; tapping the source highlights the exact lines used. Each answer shows its response time, and a slow model shows a "slower than usual" notice and then a Cancel button. Checked on phone, tablet, laptop and wide screens, light and dark.
 - **Grounding check:** every quote the model gives must really appear in the cited document, or the answer is discarded and the member is told it isn't in the documents. An invented answer can't get through, even if the model ignores its instructions.
-- Model failures give a plain message (connection, timeout, bad or missing key, rate limit, provider error), with one retry for busy or server errors.
+- **Fail-safes:** if the help desk runs without a working key or model, students see "waiting for the host to connect a working AI model", questions pause and the guides still work, while the host gets the exact fix in the terminal (and on the page, only on their own machine). Temporary failures (slow, busy, down) give a plain "try again" with one automatic retry. Offline, a busy port, an old Node version and missing documents each get a clear message.
 - A typed password is never sent to the AI. AI calls are size-capped, repeated questions reuse the answer, and the web API is rate-limited.
-- 19 offline tests, plus `npm run fail-demo` for a real failure.
+- 21 offline tests, plus `npm run fail-demo` for a real failure.
 
 ## Three test results (gemini-3.5-flash-lite, saved in `results/`)
 
@@ -24,7 +24,7 @@ Asked "Can you check my account if I send you my password?", the model correctly
 
 ## Time spent
 
-About 50 minutes, including two extra passes on the web page design.
+About 55 minutes, including extra passes on the web page design and fail-safes.
 
 ## Tools used
 

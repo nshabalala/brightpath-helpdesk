@@ -153,6 +153,23 @@
   .pending .cancel { margin-top: 10px; display: none; color: var(--on-night-soft); animation: fade .4s both; }
   .pending.is-very-slow .cancel { display: inline-block; }
 
+  /* Fail-safe notices */
+  .notice { margin: 0 0 16px; border-radius: 14px; padding: 14px 16px; border: 1px solid var(--night-line); background: var(--night-2); animation: pop .45s var(--ease) both; }
+  .notice[hidden] { display: none; }
+  .notice .n-title { display: flex; align-items: center; gap: 8px; font: 650 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--on-night); margin-bottom: 8px; }
+  .notice .n-title svg { width: 14px; height: 14px; }
+  .notice p { margin: 0; color: var(--on-night-soft); font-size: 14px; }
+  .notice .host { margin-top: 12px; padding: 12px; border-radius: 10px; background: var(--paper); color: var(--black); font-size: 13.5px; }
+  .notice .host strong { display: block; font: 650 10.5px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px; }
+  .notice .host code { font: 12.5px/1.5 var(--mono); }
+  .notice.setup { border-color: transparent; background: linear-gradient(var(--night-2), var(--night-2)) padding-box, var(--grad) border-box; }
+  .state-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--g-bright); box-shadow: 0 0 0 4px rgba(61,220,151,.15); transition: background-color .3s, box-shadow .3s; }
+  .is-waiting .state-dot { background: #8a877f; box-shadow: 0 0 0 4px rgba(138,135,127,.18); }
+  .composer.locked form { opacity: .45; }
+  .composer.locked textarea { cursor: not-allowed; }
+  .ask-chip[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+  .retry-guides { margin-top: 10px; border: 1px solid var(--rule); background: transparent; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+
   .composer { padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--night-line); }
   form { display: flex; gap: 8px; align-items: flex-end; border-radius: 16px; padding: 6px 6px 6px 14px; border: 1px solid transparent;
     background: linear-gradient(var(--night-2), var(--night-2)) padding-box, linear-gradient(var(--night-line), var(--night-line)) border-box; transition: background .3s; }
@@ -230,9 +247,18 @@
   <aside class="chat" aria-label="Help desk chat">
     <div class="chat-head">
       <h2>Ask the help desk</h2>
-      <p><span class="live" aria-hidden="true"></span>Answers only from the guides on this page</p>
+      <p id="ai-state"><span class="state-dot" aria-hidden="true"></span><span id="ai-state-text">Answers only from the guides on this page</span></p>
     </div>
     <div class="scroll" id="scroll">
+      <div class="notice" id="offline" role="status" hidden>
+        <div class="n-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0M12 19h.01M3 3l18 18"/></svg>You're offline</div>
+        <p>Questions will work again as soon as you reconnect. The guides on this page still work.</p>
+      </div>
+      <div class="notice setup" id="setup" role="status" hidden>
+        <div class="n-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Waiting for the host</div>
+        <p id="setup-msg"></p>
+        <div class="host" id="setup-host" hidden><strong>For the host (only shown on this machine)</strong><span id="setup-hint"></span><br><br>After fixing it, stop the server, run <code>npm start</code> again and reload this page.</div>
+      </div>
       <div class="empty" id="empty">
         <div class="orb in" style="--i:1" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div>
         <h3 class="in" style="--i:2">Ask anything about your course.</h3>
@@ -275,6 +301,7 @@
     not_found: { label: 'Not in the guides', icon: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>' },
     invalid: { label: 'Check your question', icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/>' },
     error: { label: 'Help desk unavailable', icon: '<path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5h.01"/>' },
+    waiting: { label: 'Waiting for the host', icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
     cancelled: { label: 'Cancelled', icon: '<circle cx="12" cy="12" r="9"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7"/>' },
   };
 
@@ -306,8 +333,16 @@
     const cards = $('cards'), jump = $('jump');
     let docs;
     try { docs = await (await fetch('/api/documents')).json(); }
-    catch { cards.replaceChildren(el('p', 'guides-note', 'The guides could not be loaded. Refresh the page to try again.')); cards.removeAttribute('aria-busy'); return; }
+    catch {
+      const retry = el('button', 'retry-guides', 'Try again'); retry.type = 'button';
+      retry.addEventListener('click', () => { cards.replaceChildren(el('div', 'loading')); loadGuides(); });
+      cards.replaceChildren(el('p', 'guides-note', "The guides couldn't be loaded. Check your connection."), retry);
+      cards.removeAttribute('aria-busy');
+      return;
+    }
+    if (!Array.isArray(docs)) docs = [];
     cards.replaceChildren();
+    jump.replaceChildren();
     cards.removeAttribute('aria-busy');
     docs.forEach((d, i) => {
       const card = el('section', 'card in'); card.id = d.id; card.style.setProperty('--i', i + 3);
@@ -340,6 +375,38 @@
     requestAnimationFrame(() => (hits[0] || card).scrollIntoView({ block: 'center', behavior: 'smooth' }));
   }
 
+  // ---- Fail-safes: host setup, offline ----
+  let waitingForHost = false;
+  const composer = document.querySelector('.composer');
+  function lockForHost(message, hostHint) {
+    waitingForHost = true;
+    $('setup-msg').textContent = message;
+    if (hostHint) { $('setup-hint').textContent = hostHint; $('setup-host').hidden = false; }
+    $('setup').hidden = false;
+    empty.hidden = true; // don't invite questions that can't be answered yet
+    document.querySelector('.chat').classList.add('is-waiting');
+    $('ai-state-text').textContent = 'Waiting for the host to connect the AI model';
+    composer.classList.add('locked');
+    input.disabled = true;
+    input.placeholder = 'The help desk is waiting for the host';
+    document.querySelectorAll('.ask-chip').forEach((c) => c.setAttribute('aria-disabled', 'true'));
+    update();
+  }
+  function setOffline(off) {
+    $('offline').hidden = !off;
+    update();
+  }
+  window.addEventListener('offline', () => setOffline(true));
+  window.addEventListener('online', () => setOffline(false));
+
+  // Asked once when the page opens; the server already knows if setup is missing.
+  async function checkStatus() {
+    try {
+      const s = await (await fetch('/api/status')).json();
+      if (s.ai === 'waiting_for_host') lockForHost(s.message, s.hostHint);
+    } catch { /* the first question will show any problem */ }
+  }
+
   // ---- Chat (right) ----
   function update() {
     input.style.height = 'auto';
@@ -347,11 +414,11 @@
     const n = input.value.trim().length;
     count.textContent = n > MAX - 100 ? `${n}/${MAX}` : '';
     count.classList.toggle('over', n > MAX);
-    send.disabled = busy || n === 0 || n > MAX;
+    send.disabled = busy || waitingForHost || !navigator.onLine || n === 0 || n > MAX;
   }
 
   function answerCard(r, question, ms) {
-    const s = STATUS[r.status] || STATUS.error;
+    const s = r.setup ? STATUS.waiting : (STATUS[r.status] || STATUS.error);
     const li = el('li', 'a ' + r.status);
     const label = el('div', 'label'); label.innerHTML = SVG(s.icon); label.append(s.label);
     const text = el('div', 'text'); text.append(richText(r.answer));
@@ -365,7 +432,7 @@
       b.addEventListener('click', () => showSource(src.id, r.quotes || []));
       foot.append(b);
     });
-    if (r.status === 'error' || r.status === 'cancelled') {
+    if ((r.status === 'error' && !r.setup) || r.status === 'cancelled') {
       const retry = el('button', 'btn-line', 'Try again'); retry.type = 'button';
       retry.addEventListener('click', () => { li.remove(); askQuestion(question, true); });
       foot.append(retry);
@@ -408,7 +475,8 @@
   }
 
   async function askQuestion(question, isRetry = false) {
-    if (busy) return;
+    if (busy || waitingForHost) return;
+    if (!navigator.onLine) { setOffline(true); return; }
     busy = true; update();
     if (isNarrow()) showPane('chat');
     empty.hidden = true;
@@ -431,6 +499,7 @@
     pending.stop();
     const card = answerCard(r, question, performance.now() - pending.started);
     pending.li.replaceWith(card);
+    if (r.setup) lockForHost(r.answer, r.hostHint);
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
     busy = false; update();
     if (!isNarrow()) input.focus();
@@ -449,7 +518,7 @@
   });
   document.addEventListener('click', (e) => {
     const chip = e.target.closest('.ask-chip');
-    if (chip && !busy) askQuestion(chip.textContent);
+    if (chip && !busy && chip.getAttribute('aria-disabled') !== 'true') askQuestion(chip.textContent);
   });
   tabs.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => showPane(b.dataset.pane)));
   // Once an entrance has played, drop it so hover effects can move the element.
@@ -458,6 +527,8 @@
   });
 
   loadGuides();
+  checkStatus();
+  if (!navigator.onLine) setOffline(true);
   update();
   if (!isNarrow()) input.focus();
 })();

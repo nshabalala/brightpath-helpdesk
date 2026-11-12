@@ -5,5 +5,6 @@ export function formatResult(r) {
     for (const q of r.quotes) lines.push(`  > ${q}`);
   }
   if (r.note) lines.push('', `[${r.note}]`);
+  if (r.hostHint) lines.push('', `Host: ${r.hostHint}`);
   return lines.join('\n');
 }

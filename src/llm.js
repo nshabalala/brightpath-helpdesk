@@ -2,26 +2,17 @@
 // (Google AI Studio / Gemini, Groq, Ollama, LM Studio, OpenAI...).
 // Configuration comes from environment variables only; no keys in code.
 
-export class ModelUnavailableError extends Error {
-  constructor(message, cause, { retryable = false } = {}) {
-    super(message);
-    this.name = 'ModelUnavailableError';
-    this.cause = cause;
-    this.retryable = retryable;
-  }
-}
+import { ModelUnavailableError } from './failures.js';
+
+export { ModelUnavailableError };
 
 export function readConfig(env = process.env) {
   const baseUrl = env.LLM_BASE_URL;
   const model = env.LLM_MODEL;
-  if (!baseUrl || !model) {
-    throw new ModelUnavailableError(
-      'No language model is configured. Set LLM_BASE_URL and LLM_MODEL (and LLM_API_KEY if your provider needs one). See .env.example.'
-    );
-  }
+  if (!baseUrl || !model) throw new ModelUnavailableError('not_configured');
   const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(baseUrl);
   if (!env.LLM_API_KEY && !isLocal) {
-    throw new ModelUnavailableError('No API key is set. Add your key to LLM_API_KEY in .env (see .env.example), or point LLM_BASE_URL at a local model.');
+    throw new ModelUnavailableError('no_key');
   }
   return {
     baseUrl: baseUrl.replace(/\/$/, ''),
@@ -66,37 +57,35 @@ async function chatOnce(messages, config, fetchImpl) {
       signal: controller.signal,
     });
   } catch (err) {
-    const reason = err.name === 'AbortError' ? `no reply within ${config.timeoutMs / 1000}s` : 'could not connect';
-    throw new ModelUnavailableError(`The AI model is unavailable right now (${reason}). Please try again shortly.`, err);
+    throw new ModelUnavailableError(err.name === 'AbortError' ? 'timeout' : 'unreachable', config, { cause: err });
   } finally {
     clearTimeout(timer);
   }
 
   if (!res.ok) {
-    const hint =
-      res.status === 401 || res.status === 403 ? 'the API key was rejected'
-      : res.status === 429 ? 'the provider is rate limiting requests'
-      : res.status === 400 ? 'the provider rejected the request; check LLM_MODEL and LLM_API_KEY'
-      : res.status === 404 ? `model "${config.model}" was not found; check LLM_MODEL`
-      : res.status >= 500 ? 'the provider had an internal error'
-      : `HTTP ${res.status}`;
-    const retryable = res.status === 429 || res.status >= 500;
-    throw new ModelUnavailableError(`The AI model is unavailable right now (${hint}). Please try again shortly.`, undefined, { retryable });
+    const s = res.status;
+    const kind =
+      s === 401 || s === 403 ? 'key_rejected'
+      : s === 400 ? 'request_rejected'
+      : s === 404 ? 'model_not_found'
+      : s === 429 ? 'rate_limited'
+      : 'provider_error';
+    throw new ModelUnavailableError(kind, { ...config, status: s }, { retryable: s === 429 || s >= 500 });
   }
 
   let data;
   try {
     data = await res.json();
   } catch {
-    throw new ModelUnavailableError('The AI model sent back a reply I could not read. Please try again.');
+    throw new ModelUnavailableError('bad_reply');
   }
   const choice = data?.choices?.[0];
   if (choice?.finish_reason === 'length') {
-    throw new ModelUnavailableError('The AI model ran out of room before finishing its answer. Please try a shorter question.');
+    throw new ModelUnavailableError('cut_off');
   }
   const content = choice?.message?.content;
   if (typeof content !== 'string') {
-    throw new ModelUnavailableError('The AI model sent back an empty reply. Please try again.');
+    throw new ModelUnavailableError('bad_reply');
   }
   return content;
 }
